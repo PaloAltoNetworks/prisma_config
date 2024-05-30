@@ -1,12 +1,14 @@
 
-[![CloudGenix Logo](https://raw.githubusercontent.com/CloudGenix/sdk-python/master/docs/CloudGenix_Logo.png)](https://www.paloaltonetworks.com/sase/sd-wan)
+[![Prisma Icon](https://avatars.githubusercontent.com/u/4855743?s=48&v=4)](https://www.paloaltonetworks.com/sase/sd-wan)
+# Prisma Config 
 
 [![image](https://img.shields.io/pypi/v/prisma_config.svg)](https://pypi.org/project/prisma-config/)
 [![image](https://img.shields.io/pypi/pyversions/prisma_config.svg)](https://pypi.org/project/prisma-config/)
 [![Downloads](https://pepy.tech/badge/prisma-config)](https://pepy.tech/project/cloudgenix-config)
 [![License: MIT](https://img.shields.io/pypi/l/prisma_config.svg?color=brightgreen)](https://pypi.org/project/prisma-config/)
 [![GitHub issues open](https://img.shields.io/github/issues/PaloAltoNetworks/prisma_config.svg)](https://github.com/PaloAltoNetworks/prisma_config/issues)
-# Prisma Config 
+
+#### Introduction
 Configuration exporting and Continuous Integration (CI) capable configuration importing for the Prisma SDWAN Cloud Controller.
 
 #### Synopsis
