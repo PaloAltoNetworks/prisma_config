@@ -1,5 +1,5 @@
 
-[![CloudGenix Logo](https://raw.githubusercontent.com/CloudGenix/sdk-python/master/docs/CloudGenix_Logo.png)](https://www.cloudgenix.com)
+[![CloudGenix Logo](https://raw.githubusercontent.com/CloudGenix/sdk-python/master/docs/CloudGenix_Logo.png)](https://www.paloaltonetworks.com/sase/sd-wan)
 
 [![image](https://img.shields.io/pypi/v/cloudgenix_config.svg)](https://pypi.org/project/prisma-config/)
 [![image](https://img.shields.io/pypi/pyversions/cloudgenix_config.svg)](https://pypi.org/project/prisma-config/)
