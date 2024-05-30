@@ -2,7 +2,7 @@
 """
 Configuration IMPORT/EXPORT common functions
 
-**Version:** 1.0.0b1
+**Version:** 6.3.1b1
 
 **Author:** Prisma SDWAN
 
@@ -58,7 +58,7 @@ else:
 
 
 # Version for reference
-__version__ = "1.0.0b1"
+__version__ = "6.3.1b1"
 version = __version__
 
 __author__ = "Prisma SDWAN Developer Support <prisma-sase-developers@paloaltonetworks.com>"
