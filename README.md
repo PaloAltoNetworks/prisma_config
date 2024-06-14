@@ -34,7 +34,15 @@ MIT
 #### Installation:
  - **PIP:** `pip install prisma_config`. After install, `pull_site`/`do_site` scripts should be placed in the Python
  Scripts directory. 
- - **Github:** Download files to a local directory, manually run `pull_site.py` and `do_site.py` scripts.  
+ - **Github:** Download files to a local directory, manually run `pull_site.py` and `do_site.py` scripts.
+
+#### Authentication:
+**prisma_config** uses OAuth2 to authenticate and authorize the use of this utility to configure the Prisma SDWAN controller. To authenticate,
+1. Create a Service Account from the Settings -> Identity & Access menu
+2. Make sure the right privileges are assigned to the service account.
+3. Copy the client ID and client secret generated for this service account
+4. Create a file **prismasase_settings.py** and copy the client ID, client secret and TSG ID of the tenant you intend to manage using this utility. Use [prismasase_settings.py.example](https://github.com/PaloAltoNetworks/prisma_config/blob/master/prismasase_settings.py.example)  as a reference.
+5. When you initiate the **pull_site** or **do_site** command, the utility will look for the **prismasase_settings.py** file in the directory you're calling these scripts from. 
 
 #### Examples of usage:
  1. Configure a Site, Element, and related objects using the UI. Record the Site name (example, MySite)
