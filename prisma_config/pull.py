@@ -81,7 +81,8 @@ except ImportError:
     else:
         PRISMASASE_TSG_ID = None
 
-
+skip_bgp_tags = {'AUTO_PA_SDWAN_MANAGED'}
+interface_tags_skiplst = { 'AUTO_PA_SDWAN_MANAGED'}
 # python 2 and 3 handling
 if sys.version_info < (3,):
     text_type = unicode
@@ -167,6 +168,7 @@ MULTICASTSOURCESITECONFIGS_STR = "multicastsourcesiteconfigs"
 DEVICE_ID_CONFIGS_STR = "deviceidconfigs"
 SNMPDISCOVERY_STR = "snmpdiscoverystartnodes"
 ELEMENT_DEVICEIDCONFIGS_STR = "element_deviceidconfigs"
+PRISMASASE_CONNECTIONS_STR = "prismasase_connections"
 
 # Global Config Cache holders
 sites_cache = []
@@ -209,6 +211,7 @@ vrfcontextprofiles_cache = []
 perfmgmtpolicysetstacks_cache = []
 perfmgmtpolicysets_cache = []
 deviceidprofiles_cache = []
+prismasase_connections_cache = []
 
 id_name_cache = {}
 sites_n2id = {}
@@ -323,6 +326,7 @@ def update_global_cache():
     global perfmgmtpolicysetstacks_cache
     global perfmgmtpolicysets_cache
     global deviceidprofiles_cache
+    global prismasase_connections_cache
 
 
     global id_name_cache
@@ -587,6 +591,8 @@ def update_global_cache():
 
     id_name_cache.update(build_lookup_dict(deviceidprofiles_cache, key_val='id', value_val='name'))
 
+    id_name_cache.update(build_lookup_dict(prismasase_connections_cache, key_val='id', value_val='name'))
+
     # WAN Networks ID to Type cache - will be used to disambiguate "Public" vs "Private" WAN Networks that have
     # the same name at the SWI level.
     wannetworks_id2type = build_lookup_dict(wannetworks_cache, key_val='id', value_val='type')
@@ -654,6 +660,7 @@ def build_version_strings():
     global DEVICE_ID_CONFIGS_STR
     global SNMPDISCOVERY_STR
     global ELEMENT_DEVICEIDCONFIGS_STR
+    global PRISMASASE_CONNECTIONS_STR
 
     if not STRIP_VERSIONS:
         # Config container strings
@@ -698,6 +705,7 @@ def build_version_strings():
         DEVICE_ID_CONFIGS_STR = add_version_to_object(sdk.get.deviceidconfigs, "deviceidconfigs")
         SNMPDISCOVERY_STR = add_version_to_object(sdk.get.deviceidconfigs_snmpdiscoverystartnodes, "snmpdiscoverystartnodes")
         ELEMENT_DEVICEIDCONFIGS_STR = add_version_to_object(sdk.get.element_deviceidconfigs, "element_deviceidconfigs")
+        PRISMASASE_CONNECTIONS_STR = add_version_to_object(sdk.get.prismasase_connections, "prismasase_connections")
 
 
 def strip_meta_attributes(obj, leave_name=False, report_id=None):
@@ -1048,6 +1056,48 @@ def _pull_config_for_single_site(site_name_id):
 
     delete_if_empty(site, DEVICE_ID_CONFIGS_STR)
 
+    # Get prismasase_connections
+
+    site[PRISMASASE_CONNECTIONS_STR] = {}
+    # response = sdk.get.prismasase_connections(site['id'],api_version='v2.1')
+    response = sdk.get.prismasase_connections(site['id'])
+    if not response.cgx_status:
+        throw_warning("Prisma SASE Connections get failed: ", response)
+    prismasase_connections_items = response.cgx_content.get('items',[])
+
+    for prismasase_connections in prismasase_connections_items:
+
+        is_active = prismasase_connections.get('is_active')
+        eonboard_name = "PRIMARY_CONNECTION" if is_active else "SECONDARY_CONNECTION"
+        prismasase_connections_template = copy.deepcopy(prismasase_connections)
+        if prismasase_connections.get('enabled_wan_interface_ids'):
+            wan_interface_ids = []
+            for wan_interface_id in prismasase_connections.get('enabled_wan_interface_ids', []):
+                wan_interface_ids.append(id_name_cache.get(wan_interface_id, wan_interface_id))
+            if wan_interface_ids:
+                prismasase_connections_template['enabled_wan_interface_ids'] = wan_interface_ids
+
+        if prismasase_connections.get('remote_network_groups'):
+            remote_network_groups = []
+            for remote_network_group in prismasase_connections.get('remote_network_groups'):
+                ipsec_tunnels = []
+                if remote_network_group.get('ipsec_tunnels'):
+                    for ipsec_tunnel in remote_network_group.get('ipsec_tunnels'):
+                        if ipsec_tunnel.get('wan_interface_id'):
+                            ipsec_tunnel['wan_interface_id'] = id_name_cache.get(ipsec_tunnel.get('wan_interface_id'),
+                                                                                 ipsec_tunnel.get('wan_interface_id'))
+                            ipsec_tunnels.append(ipsec_tunnel)
+                    if ipsec_tunnels:
+                        remote_network_group['ipsec_tunnels'] = ipsec_tunnels
+                remote_network_groups.append(remote_network_group)
+
+            prismasase_connections_template['remote_network_groups'] = remote_network_groups
+
+        strip_meta_attributes(prismasase_connections_template)
+        site[PRISMASASE_CONNECTIONS_STR][eonboard_name] = prismasase_connections_template
+
+    delete_if_empty(site, PRISMASASE_CONNECTIONS_STR)
+
     # Get Elements
     site[ELEMENTS_STR] = {}
     dup_name_dict_elements = {}
@@ -1109,7 +1159,21 @@ def _pull_config_for_single_site(site_name_id):
         parent_id_list = []
         bp_parent_id_list = []
         if_name_dict = {}
+        skip_if_set = set()
         for interface in interfaces:
+            if interface.get('type') == 'bypasspair':
+                name = interface.get('name')
+                if name and (name[:3] != 'bp_'):
+                    interface['name'] = 'bp_' + name
+
+            Flag = False
+            if interface.get('tags'):
+                tags = interface.get('tags')
+                Flag = True
+            tags = set(tags) if Flag else set()
+            if len(tags.intersection(interface_tags_skiplst)):
+                skip_if_set.add(interface['id'])
+
             if interface.get('name') in if_name_dict:
                 if_name_dict[interface.get('name')] += 1
             else:
@@ -1126,7 +1190,6 @@ def _pull_config_for_single_site(site_name_id):
             if parent_id is not None and if_type in ['subinterface', 'pppoe', 'service_link']:
                 if if_id2type[parent_id] == 'bypasspair':
                     bps += '_' + id_name_cache.get(parent_id)
-                    interface['parent_type'] = 'bypasspair' + bps
 
             bypasspair_config = interface.get('bypass_pair')
             if bypasspair_config is not None and isinstance(bypasspair_config, dict):
@@ -1146,6 +1209,8 @@ def _pull_config_for_single_site(site_name_id):
 
         for interface in interfaces:
             interface_id = interface.get('id')
+            if interface['id'] in skip_if_set:
+                continue
             if_type = interface.get('type')
             if not FORCE_PARENTS and interface_id in parent_id_list:
                 # interface is a parent, skip
@@ -1316,7 +1381,6 @@ def _pull_config_for_single_site(site_name_id):
                     # Add 'parent_type' field if model is 9k and interface is bypasspair
                     if if_id2type.get(nexthop_interface_id) == 'bypasspair':
                         bps += '_' + id_name_cache.get(nexthop_interface_id)
-                        nexthop_template['parent_type'] = 'bypasspair' + bps
                     # replace flat names in dict
                     name_lookup_in_template(nexthop_template, 'nexthop_interface_id', id_name_cache)
                     # add to list
@@ -1377,6 +1441,12 @@ def _pull_config_for_single_site(site_name_id):
         dup_name_dict = {}
         for bgp_peer in bgp_peers_cache:
             bgp_peer_template = copy.deepcopy(bgp_peer)
+            tags = bgp_peer_template.get('tags')
+            # to skip the bgp_peers using tags.
+            if tags:
+                filtered_tags = [1 for tag in tags if tag in skip_bgp_tags]
+                if filtered_tags:
+                    continue
             # replace flat name
             name_lookup_in_template(bgp_peer_template, 'route_map_in_id', id_name_cache)
             name_lookup_in_template(bgp_peer_template, 'route_map_out_id', id_name_cache)
@@ -1585,10 +1655,7 @@ def _pull_config_for_single_site(site_name_id):
                     # Add 'parent_type' field if model is 9k and interface is bypasspair
                     if if_id2type.get(iface) == 'bypasspair':
                         bps += '_' + id_name_cache.get(iface, iface)
-                        ntp_template['parent_type'] = if_id2type[iface]
                     source_ids.append(id_name_cache.get(iface, iface))
-                if bps:
-                    ntp_template['parent_type'] = 'bypasspair' + bps
                 if source_ids:
                     ntp_template['source_interface_ids'] = source_ids
             # names used, but config doesn't index by name for this value currently.
@@ -1609,7 +1676,6 @@ def _pull_config_for_single_site(site_name_id):
             # Add 'parent_type' field if model is 9k and interface is bypasspair
             if if_id2type.get(element_extension_entity_id) == 'bypasspair':
                 bps += '_' + id_name_cache.get(element_extension_entity_id)
-                element_extension_template['parent_type'] = 'bypasspair' + bps
             # replace flat name
             name_lookup_in_template(element_extension_template, 'entity_id', id_name_cache)
             strip_meta_attributes(element_extension_template)
@@ -1643,15 +1709,9 @@ def _pull_config_for_single_site(site_name_id):
 
             esz_interface_ids = element_securityzone.get('interface_ids', None)
             if esz_interface_ids and isinstance(esz_interface_ids, list):
-                esz_interface_ids_template, bps = [], ''
+                esz_interface_ids_template = []
                 for esz_interface_id in esz_interface_ids:
-                    # Add 'parent_type' field if model is 9k and interface is bypasspair
-                    if if_id2type.get(esz_interface_id) == 'bypasspair':
-                        bps += '_' + id_name_cache.get(esz_interface_id)
-                        element_securityzone_template['parent_type'] = if_id2type[esz_interface_id]
                     esz_interface_ids_template.append(id_name_cache.get(esz_interface_id, esz_interface_id))
-                if bps:
-                    element_securityzone_template['parent_type'] = 'bypasspair' + bps
                 element_securityzone_template['interface_ids'] = esz_interface_ids_template
 
             esz_waninterface_ids = element_securityzone.get('waninterface_ids', None)
@@ -1689,7 +1749,6 @@ def _pull_config_for_single_site(site_name_id):
             # Add 'parent_type' field if model is 9k and interface is bypasspair
             if if_id2type.get(snmptrap_source_interface_id) == 'bypasspair':
                 bps += '_' + id_name_cache.get(snmptrap_source_interface_id)
-                snmptrap_template['parent_type'] = 'bypasspair' + bps
             # replace flat name
             name_lookup_in_template(snmptrap_template, 'source_interface', id_name_cache)
             strip_meta_attributes(snmptrap_template)
@@ -1734,7 +1793,6 @@ def _pull_config_for_single_site(site_name_id):
                             # Add 'parent_type' field if model is 9k and interface is bypasspair
                             if if_id2type.get(iface_interface_id) == 'bypasspair':
                                 bps += '_' + id_name_cache.get(iface_interface_id)
-                                iface['parent_type'] = 'bypasspair' + bps
                             name_lookup_in_template(iface, 'interface_id', id_name_cache)
             if dnsservices_template.get('domains_to_interfaces', ''):
                 bps = ''
@@ -1742,7 +1800,6 @@ def _pull_config_for_single_site(site_name_id):
                     dom_iface_interface_id = dom_iface.get('interface_id')
                     if if_id2type.get(dom_iface_interface_id) == 'bypasspair':
                         bps += '_' + id_name_cache.get(dom_iface_interface_id)
-                        dom_iface['parent_type'] = 'bypasspair' + bps
                     name_lookup_in_template(dom_iface, 'interface_id', id_name_cache)
             name_lookup_in_template(dnsservices_template, 'element_id', id_name_cache)
             strip_meta_attributes(dnsservices_template, leave_name=True)
@@ -1767,7 +1824,6 @@ def _pull_config_for_single_site(site_name_id):
             # Add 'parent_type' field if model is 9k and interface is bypasspair
             if if_id2type.get(app_probe_source_interface_id) == 'bypasspair':
                 bps += '_' + id_name_cache.get(app_probe_source_interface_id)
-                app_probe_template['parent_type'] = 'bypasspair' + bps
             name_lookup_in_template(app_probe_template, 'source_interface_id', id_name_cache)
             strip_meta_attributes(app_probe_template, leave_name=True)
 
@@ -2233,7 +2289,14 @@ def go():
     # login logic. Use cmdline if set, use AUTH_TOKEN next, finally user/pass from config file, then prompt.
 
     # check for token
+    PRISMASASE_CLIENT_ID = "test-aryan@1348811802.iam.panserviceaccount.com"
+    PRISMASASE_CLIENT_ID = "test_user_prisma_config@1418235938.iam.panserviceaccount.com"
+    PRISMASASE_CLIENT_SECRET = "d8959bf2-ce62-4b59-8755-2d11922721cb"
+    PRISMASASE_CLIENT_SECRET = "2c5e3054-53aa-4e3d-bd22-dd9af38b88e1"
+    PRISMASASE_TSG_ID = "1348811802"
+    PRISMASASE_TSG_ID = "1418235938"
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
+        sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,
                                      client_secret=PRISMASASE_CLIENT_SECRET,
                                      tsg_id=PRISMASASE_TSG_ID)
