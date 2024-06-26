@@ -61,7 +61,7 @@ try:
         list_to_named_key_value, recombine_named_key_value, get_default_ifconfig_from_model_string, \
         order_interface_by_number, get_member_default_config, default_backwards_bypasspairs, find_diff, \
         nameable_interface_types, skip_interface_list, check_default_ipv4_config, use_sdk_yaml_version, \
-        get_function_default_args, PrismaConfigError
+        get_function_default_args, PrismaConfigError,build_lookup_dict_for_prisma_sase
 
     from prisma_config import __version__ as import_prisma_config_version
 except Exception:
@@ -70,7 +70,7 @@ except Exception:
         list_to_named_key_value, recombine_named_key_value, get_default_ifconfig_from_model_string, \
         order_interface_by_number, get_member_default_config, default_backwards_bypasspairs, find_diff, \
         nameable_interface_types, skip_interface_list, check_default_ipv4_config, use_sdk_yaml_version, \
-        get_function_default_args, PrismaConfigError
+        get_function_default_args, PrismaConfigError,build_lookup_dict_for_prisma_sase
 
     from prisma_config.prisma_config import __version__ as import_prisma_config_version
 
@@ -139,6 +139,9 @@ CONFIG_VERSION_REQUIRED = '6.3.1b1'
 DEFAULT_WAIT_MAX_TIME = 600  # seconds
 DEFAULT_WAIT_INTERVAL = 10  # seconds
 DEFAULT_ELEM_CONFIG_INTERVAL = 0  # seconds
+skip_bgp_tags = { 'AUTO_PA_SDWAN_MANAGED','CUSTUM_TAG'}
+interface_tags_skiplst = {'AUTO_PA_SDWAN_MANAGED','CUSTUM_TAG'}
+
 
 # Handle cloudblade calls
 FROM_CLOUDBLADE = 0
@@ -334,7 +337,7 @@ machines_byserial = {}
 securityzones_id2n = {}
 natlocalprefixes_id2n = {}
 ipfixlocalprefix_id2n = {}
-
+interfaces_id2tag = {}
 # global configurable items
 timeout_offline = DEFAULT_WAIT_MAX_TIME
 timeout_claim = DEFAULT_WAIT_MAX_TIME
@@ -461,6 +464,17 @@ def output_message(message, resp=None, cr=True):
             sys.stdout.write(output2)
     return
 
+def mapping_id2tag_interface(interface_resp):
+    global interfaces_id2tag
+    items = interface_resp.cgx_content.get('items')
+    for item in items:
+        _tags = item.get('tags')
+        if _tags:
+            #_tags are case-sensitive.
+            _tags = set([tag for tag in _tags])
+        else:
+            _tags = set()
+        interfaces_id2tag[item['id']] = _tags
 
 def update_global_cache():
     """
@@ -8189,7 +8203,7 @@ def create_prismasase_connections(config_prismasase_connections, site_id, wanint
                         ipsec_tunnels.append(ipsec_tunnel)
                 if ipsec_tunnels:
                     remote_network_group['ipsec_tunnels'] = ipsec_tunnels
-                    remote_network_groups.append(remote_network_group)
+            remote_network_groups.append(remote_network_group)
 
         prismasase_connections_template['remote_network_groups'] = remote_network_groups
 
@@ -8251,7 +8265,7 @@ def modify_prismasase_connections(config_prismasase_connections, prismasase_conn
                         ipsec_tunnels.append(ipsec_tunnel)
                 if ipsec_tunnels:
                     remote_network_group['ipsec_tunnels'] = ipsec_tunnels
-                    remote_network_groups.append(remote_network_group)
+            remote_network_groups.append(remote_network_group)
 
         prismasase_connections_template['remote_network_groups'] = remote_network_groups
 
@@ -9132,29 +9146,22 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                                                   id2n=deviceid_snmpdiscovery_id2n)
 
             # -- Start Prismasase Connections config
-            prismasase_connections_resp = sdk.get.prismasase_connections(site_id, api_version="v2.1")
+            prismasase_connections_resp = sdk.get.prismasase_connections(site_id)
             if not prismasase_connections_resp.cgx_status:
-                throw_error("Prismasase Connections get failed: ", prismasase_connections_resp)
+                throw_warning("Prismasase Connections get failed: ", prismasase_connections_resp)
 
             prismasase_connections_cache, leftover_prismasase_connections = extract_items(
                 prismasase_connections_resp, 'prismasase_connections')
 
-            implicit_prismasase_connections_id = None
-            # There exists only one Prismasase Connections item, Fetch the prismasase_connections id from the cache
-            if prismasase_connections_cache:
-                implicit_prismasase_connections_id = prismasase_connections_cache[0].get('id')
+            prismasase_connection_n2id = build_lookup_dict_for_prisma_sase(prismasase_connections_cache,key_val="is_active")
 
-            # iterate configs (list)
-            for prismasase_connections_entry in config_prismasase_connections:
+            for name,prismasase_connections_entry in config_prismasase_connections.items():
                 # deepcopy to modify.
                 config_prismasase_connections_record = copy.deepcopy(prismasase_connections_entry)
+                #there will be only two entry present in config_prismasase_connections_record
+                is_active = config_prismasase_connections_record.get("is_active")
 
-                if implicit_prismasase_connections_id is not None:
-                    prismasase_connections_id = implicit_prismasase_connections_id
-                else:
-                    # no Prismasase Connections object.
-                    prismasase_connections_id = None
-
+                prismasase_connections_id = prismasase_connection_n2id.get(str(is_active))
                 if prismasase_connections_id is not None:
                     # Prismasase Connections exists, modify.
                     prismasase_connections_id = modify_prismasase_connections(
@@ -9381,6 +9388,8 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 # unable to be used (incorrect subif or port name). This table keeps that info, and lets it
                 # be used if it doesn't conflict with actual interface names.
                 interfaces_funny_n2id = {}
+
+                mapping_id2tag_interface(interfaces_resp)
 
                 # START LOOPBACKS ADD: need to handle base interfaces (bypass members) first. Get the looback IF deltas.
                 config_loopback_add, api_loopback_del, \
@@ -9899,6 +9908,18 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 config_servicelinks = get_config_interfaces_by_type(config_interfaces_defaults, 'service_link')
                 leftover_servicelinks = get_api_interfaces_name_by_type(interfaces_cache, 'service_link', key_name='id')
 
+                lst = []
+
+                for interface in leftover_servicelinks:
+                    if interface in interfaces_id2tag:
+
+                        sl_tags = interfaces_id2tag[interface]
+                        if not sl_tags:
+                            lst.append(interface)
+                        if sl_tags and not sl_tags.intersection(interface_tags_skiplst):
+                            lst.append(interface)
+
+                leftover_servicelinks = lst
                 for config_interface_name, config_interface_value in config_servicelinks.items():
 
                     # recombine object
@@ -11521,6 +11542,15 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 # build lookup cache based on peer IP as well.
                 bgp_peers_p2id = build_lookup_dict(bgp_peers_cache, key_val='peer_ip')
 
+                for bgp_peer in bgp_peers_cache:
+                    tags = bgp_peer.get('tags')
+                    if tags:
+                        tags = set(tags)
+                    else:
+                        tags = set()
+                    if tags.intersection(skip_bgp_tags):
+                        leftover_bgp_peers = [entry for entry in leftover_bgp_peers
+                                              if entry != bgp_peer.get('id')]
                 # iterate configs
                 for config_bgp_peer_name, config_bgp_peer_value in \
                         config_routing_bgp_peers.items():
@@ -12623,6 +12653,9 @@ def go():
     # figure out user
 
     # check for service account
+    PRISMASASE_CLIENT_ID = "test-aryan@1348811802.iam.panserviceaccount.com"
+    PRISMASASE_CLIENT_SECRET = "d8959bf2-ce62-4b59-8755-2d11922721cb"
+    PRISMASASE_TSG_ID = "1348811802"
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
         sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,
