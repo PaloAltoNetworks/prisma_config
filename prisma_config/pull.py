@@ -1164,7 +1164,7 @@ def _pull_config_for_single_site(site_name_id):
                 name = interface.get('name')
                 if name and (name[:3] != 'bp_'):
                     interface['name'] = 'bp_' + name
-                id_name_cache[interface['id']] = interface['name']
+            id_name_cache[interface['id']] = interface['name']
             Flag = False
             if interface.get('tags'):
                 tags = interface.get('tags')
