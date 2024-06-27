@@ -139,8 +139,7 @@ CONFIG_VERSION_REQUIRED = '6.3.1b1'
 DEFAULT_WAIT_MAX_TIME = 600  # seconds
 DEFAULT_WAIT_INTERVAL = 10  # seconds
 DEFAULT_ELEM_CONFIG_INTERVAL = 0  # seconds
-skip_bgp_tags = { 'AUTO_PA_SDWAN_MANAGED','CUSTUM_TAG'}
-interface_tags_skiplst = {'AUTO_PA_SDWAN_MANAGED','CUSTUM_TAG'}
+interface_tags_skiplst = {'AUTO_PA_SDWAN_MANAGED'}
 
 
 # Handle cloudblade calls
@@ -11541,14 +11540,12 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 bgp_peers_n2id = build_lookup_dict(bgp_peers_cache)
                 # build lookup cache based on peer IP as well.
                 bgp_peers_p2id = build_lookup_dict(bgp_peers_cache, key_val='peer_ip')
-
+                eonboard_desc = "Auto created and managed by SDWAN, " \
+                                "please not change anything if you are not sure about the consequence." \
+                                " Wrong config might result in traffic interruption."
                 for bgp_peer in bgp_peers_cache:
-                    tags = bgp_peer.get('tags')
-                    if tags:
-                        tags = set(tags)
-                    else:
-                        tags = set()
-                    if tags.intersection(skip_bgp_tags):
+                    des = bgp_peer.get('description')
+                    if des and des == eonboard_desc:
                         leftover_bgp_peers = [entry for entry in leftover_bgp_peers
                                               if entry != bgp_peer.get('id')]
                 # iterate configs
@@ -12653,9 +12650,6 @@ def go():
     # figure out user
 
     # check for service account
-    PRISMASASE_CLIENT_ID = "test-aryan@1348811802.iam.panserviceaccount.com"
-    PRISMASASE_CLIENT_SECRET = "d8959bf2-ce62-4b59-8755-2d11922721cb"
-    PRISMASASE_TSG_ID = "1348811802"
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
         sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,

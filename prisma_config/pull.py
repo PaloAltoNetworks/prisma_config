@@ -81,7 +81,6 @@ except ImportError:
     else:
         PRISMASASE_TSG_ID = None
 
-skip_bgp_tags = {'AUTO_PA_SDWAN_MANAGED'}
 interface_tags_skiplst = { 'AUTO_PA_SDWAN_MANAGED'}
 # python 2 and 3 handling
 if sys.version_info < (3,):
@@ -1165,7 +1164,7 @@ def _pull_config_for_single_site(site_name_id):
                 name = interface.get('name')
                 if name and (name[:3] != 'bp_'):
                     interface['name'] = 'bp_' + name
-
+                id_name_cache[interface['id']] = interface['name']
             Flag = False
             if interface.get('tags'):
                 tags = interface.get('tags')
@@ -1439,14 +1438,16 @@ def _pull_config_for_single_site(site_name_id):
         # get BGP peer config
         element['routing']['bgp'][BGP_PEERS_CONFIG_STR] = {}
         dup_name_dict = {}
+        eonboard_desc = "Auto created and managed by SDWAN, " \
+                        "please not change anything if you are not sure about the consequence." \
+                        " Wrong config might result in traffic interruption."
+
         for bgp_peer in bgp_peers_cache:
             bgp_peer_template = copy.deepcopy(bgp_peer)
-            tags = bgp_peer_template.get('tags')
-            # to skip the bgp_peers using tags.
-            if tags:
-                filtered_tags = [1 for tag in tags if tag in skip_bgp_tags]
-                if filtered_tags:
-                    continue
+            des = bgp_peer_template.get('description')
+            # to skip the bgp_peers using descriptions.
+            if des and des == eonboard_desc:
+                continue
             # replace flat name
             name_lookup_in_template(bgp_peer_template, 'route_map_in_id', id_name_cache)
             name_lookup_in_template(bgp_peer_template, 'route_map_out_id', id_name_cache)
@@ -2289,12 +2290,6 @@ def go():
     # login logic. Use cmdline if set, use AUTH_TOKEN next, finally user/pass from config file, then prompt.
 
     # check for token
-    PRISMASASE_CLIENT_ID = "test-aryan@1348811802.iam.panserviceaccount.com"
-    PRISMASASE_CLIENT_ID = "test_user_prisma_config@1418235938.iam.panserviceaccount.com"
-    PRISMASASE_CLIENT_SECRET = "d8959bf2-ce62-4b59-8755-2d11922721cb"
-    PRISMASASE_CLIENT_SECRET = "2c5e3054-53aa-4e3d-bd22-dd9af38b88e1"
-    PRISMASASE_TSG_ID = "1348811802"
-    PRISMASASE_TSG_ID = "1418235938"
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
         sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,
