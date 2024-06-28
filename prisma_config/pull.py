@@ -1067,7 +1067,7 @@ def _pull_config_for_single_site(site_name_id):
     for prismasase_connections in prismasase_connections_items:
 
         is_active = prismasase_connections.get('is_active')
-        eonboard_name = "PRIMARY_CONNECTION" if is_active else "SECONDARY_CONNECTION"
+        eonboard_name = "ACTIVE" if is_active else "BACKUP"
         prismasase_connections_template = copy.deepcopy(prismasase_connections)
         if prismasase_connections.get('enabled_wan_interface_ids'):
             wan_interface_ids = []
@@ -2291,7 +2291,6 @@ def go():
 
     # check for token
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
-        sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,
                                      client_secret=PRISMASASE_CLIENT_SECRET,
                                      tsg_id=PRISMASASE_TSG_ID)
