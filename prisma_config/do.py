@@ -8216,9 +8216,9 @@ def create_prismasase_connections(config_prismasase_connections, site_id, wanint
     prismasase_connections_id = prismasase_connections_resp.cgx_content.get('id')
 
     if not prismasase_connections_id:
-        throw_error("Unable to determine Radii attributes (ID {0})..".format(prismasase_connections_id))
+        throw_error("Unable to determine Prismasase Connections attributes (ID {0})..".format(prismasase_connections_id))
 
-    output_message("   Created Radii {0}.".format(prismasase_connections_id))
+    output_message("   Created Prismasase Connections {0}.".format(prismasase_connections_id))
 
     return prismasase_connections_id
 
@@ -12651,7 +12651,6 @@ def go():
 
     # check for service account
     if (PRISMASASE_CLIENT_ID and PRISMASASE_CLIENT_SECRET and PRISMASASE_TSG_ID):
-        sdk.sase_qa_env = True
         sdk.interactive.login_secret(client_id=PRISMASASE_CLIENT_ID,
                                      client_secret=PRISMASASE_CLIENT_SECRET,
                                      tsg_id=PRISMASASE_TSG_ID)
