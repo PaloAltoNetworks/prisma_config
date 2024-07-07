@@ -590,8 +590,6 @@ def update_global_cache():
 
     id_name_cache.update(build_lookup_dict(deviceidprofiles_cache, key_val='id', value_val='name'))
 
-    id_name_cache.update(build_lookup_dict(prismasase_connections_cache, key_val='id', value_val='name'))
-
     # WAN Networks ID to Type cache - will be used to disambiguate "Public" vs "Private" WAN Networks that have
     # the same name at the SWI level.
     wannetworks_id2type = build_lookup_dict(wannetworks_cache, key_val='id', value_val='type')
@@ -1066,8 +1064,7 @@ def _pull_config_for_single_site(site_name_id):
 
     for prismasase_connections in prismasase_connections_items:
 
-        is_active = prismasase_connections.get('is_active')
-        eonboard_name = "ACTIVE" if is_active else "BACKUP"
+        location_name = prismasase_connections.get('prismaaccess_edge_location')[0]
         prismasase_connections_template = copy.deepcopy(prismasase_connections)
         if prismasase_connections.get('enabled_wan_interface_ids'):
             wan_interface_ids = []
@@ -1077,23 +1074,33 @@ def _pull_config_for_single_site(site_name_id):
                 prismasase_connections_template['enabled_wan_interface_ids'] = wan_interface_ids
 
         if prismasase_connections.get('remote_network_groups'):
-            remote_network_groups = []
+            remote_network_groups = {}
             for remote_network_group in prismasase_connections.get('remote_network_groups'):
-                ipsec_tunnels = []
-                if remote_network_group.get('ipsec_tunnels'):
-                    for ipsec_tunnel in remote_network_group.get('ipsec_tunnels'):
-                        if ipsec_tunnel.get('wan_interface_id'):
-                            ipsec_tunnel['wan_interface_id'] = id_name_cache.get(ipsec_tunnel.get('wan_interface_id'),
-                                                                                 ipsec_tunnel.get('wan_interface_id'))
-                            ipsec_tunnels.append(ipsec_tunnel)
-                    if ipsec_tunnels:
-                        remote_network_group['ipsec_tunnels'] = ipsec_tunnels
-                remote_network_groups.append(remote_network_group)
+                ipsec_tunnel = {}
+
+                for ipsec_tunnel_template in remote_network_group.get('ipsec_tunnels', []):
+                    name_lookup_in_template(ipsec_tunnel_template, 'wan_interface_id', id_name_cache)
+                    tunnel_name = ipsec_tunnel_template.get('name')
+                    ipsec_tunnel_template.pop('authentication', '')
+                    ipsec_tunnel_template.pop('routing', '')
+                    ipsec_tunnel_template.pop('routing_configs', '')
+                    strip_meta_attributes(ipsec_tunnel_template)
+                    ipsec_tunnel.update({tunnel_name: ipsec_tunnel_template})
+                name = remote_network_group.get('name')
+                remote_network_group.pop('name','')
+                remote_network_group['ipsec_tunnels'] = ipsec_tunnel
+                remote_network_groups.update({name: remote_network_group})
 
             prismasase_connections_template['remote_network_groups'] = remote_network_groups
 
+        if prismasase_connections.get('routing_configs'):
+            if prismasase_connections.get('routing_configs').get('bgp_secret'):
+                prismasase_connections_template['routing_configs']['bgp_secret'] = None
+
+        prismasase_connections_template.pop('ipsec_tunnel_configs','')
+        prismasase_connections_template.pop('prismaaccess_edge_location','')
         strip_meta_attributes(prismasase_connections_template)
-        site[PRISMASASE_CONNECTIONS_STR][eonboard_name] = prismasase_connections_template
+        site[PRISMASASE_CONNECTIONS_STR][location_name] = prismasase_connections_template
 
     delete_if_empty(site, PRISMASASE_CONNECTIONS_STR)
 

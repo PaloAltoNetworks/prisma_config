@@ -138,7 +138,7 @@ SDK_VERSION_REQUIRED = '6.3.1b1'  # Version when these fields were introduced in
 CONFIG_VERSION_REQUIRED = '6.3.1b1'
 DEFAULT_WAIT_MAX_TIME = 600  # seconds
 DEFAULT_WAIT_INTERVAL = 10  # seconds
-DEFAULT_ELEM_CONFIG_INTERVAL = 0  # seconds
+DEFAULT_ELEM_CONFIG_INTERVAL = 0 # seconds
 interface_tags_skiplst = {'AUTO_PA_SDWAN_MANAGED'}
 
 
@@ -1008,9 +1008,9 @@ def parse_element_config(config_element):
     config_element_deviceidconfigs, _ = config_lower_version_get(config_element, 'element_deviceidconfigs', sdk.put.element_deviceidconfigs, default = [])
 
     return config_interfaces, config_routing, config_syslog, config_ntp, config_snmp, config_toolkit, \
-           config_element_extensions, config_element_security_zones, config_dnsservices, config_app_probe, \
-           config_ipfix, config_multicastglobalconfigs, config_multicastrps, config_element_cellular_modules, \
-           config_cellular_modules_sim_security, config_radii, config_element_deviceidconfigs
+        config_element_extensions, config_element_security_zones, config_dnsservices, config_app_probe, \
+        config_ipfix, config_multicastglobalconfigs, config_multicastrps, config_element_cellular_modules, \
+        config_cellular_modules_sim_security, config_radii, config_element_deviceidconfigs
 
 
 def parse_routing_config(config_routing):
@@ -1034,7 +1034,7 @@ def parse_routing_config(config_routing):
     config_routing_bgp = config_lower_get(config_routing, 'bgp', default={})
 
     return config_routing_aspathaccesslists, config_routing_ipcommunitylists, config_routing_prefixlists, \
-           config_routing_routemaps, config_routing_static, config_routing_bgp
+        config_routing_routemaps, config_routing_static, config_routing_bgp
 
 
 def parse_bgp_config(config_routing_bgp):
@@ -1321,7 +1321,7 @@ def wait_for_element_state(matching_element, state_list=None, wait_verify_succes
 
 
 def wait_for_device_change_mode_state(matching_element, device_mode, state_list=None, wait_verify_success=900,
-                                      wait_interval=30, declaim=False):
+                           wait_interval=30, declaim=False):
     """
     Wait for Element to reach a specific state or list of states.
     :param matching_element: Element API response for element to wait for
@@ -1896,11 +1896,9 @@ def assign_modify_element(matching_element, site_id, config_element, hubclusters
             elem_template.update(config_element_copy)
 
             if elem_template.get('cluster_id'):
-                elem_template['cluster_id'] = hubclusters_n2id.get(elem_template['cluster_id'],
-                                                                   elem_template['cluster_id'])
+                elem_template['cluster_id'] = hubclusters_n2id.get(elem_template['cluster_id'], elem_template['cluster_id'])
 
-                if element_change_check.get('cluster_id') and elem_template['cluster_id'] != element_change_check[
-                    'cluster_id']:
+                if element_change_check.get('cluster_id') and elem_template['cluster_id'] != element_change_check['cluster_id'] :
                     output_message("Resetting the cluster id for the element {0}.".format(element_name))
                     elem_template['cluster_id'] = None
                     elem_template['sw_obj'] = None
@@ -1918,7 +1916,7 @@ def assign_modify_element(matching_element, site_id, config_element, hubclusters
                             if error:
                                 if error[0].get('code') in ('INVALID_JSON_COMMON_ATTR_MISMATCH'):
                                     output_message("Element {0} update is under progress. Trying after 10secs.".format(
-                                        element_descriptive_text))
+                                            element_descriptive_text))
                                     time.sleep(10)
                                     elem_update_wait += 10
                                     elem_resp = sdk.get.elements(element_id, api_version=version)
@@ -8072,7 +8070,54 @@ def modify_radii(config_radii, radii_id, element_id, interfaces_n2id, yml_interf
     return radius_id
 
 
-def create_prismasase_connections(config_prismasase_connections, site_id, waninterfaces_n2id):
+
+def preprocess_prismasase_connection_payload(template,waninterfaces_n2id):
+
+    conf_ipsec_tunnel = {
+        "ipsec_tunnel_configs": {
+                "anti_replay": False,
+                "copy_tos": False,
+                "tunnel_monitoring": True,
+                "enable_gre_encapsulation": False,
+                # "ike_key_exchange": "ikev2",
+                # "prismaaccess_ike_crypto_profile_id": None,
+                # "prismaaccess_ipsec_profile_id": None
+                }
+    }
+    template.update(conf_ipsec_tunnel)
+
+    if template.get('remote_network_groups'):
+        remote_network_groups = []
+
+        for key,item in template.get('remote_network_groups').items():
+            remote_network_template = recombine_named_key_value(key, item)
+
+            if remote_network_template.get('ipsec_tunnels'):
+                ipsec_tunnel = []
+                for ipsec_name, ipsec_tunnel_config in remote_network_template['ipsec_tunnels'].items():
+                    ipsec_tunnel_template = recombine_named_key_value(ipsec_name, ipsec_tunnel_config)
+                    ipsec_tunnel_template['wan_interface_id'] = waninterfaces_n2id.get(
+                        ipsec_tunnel_template['wan_interface_id'], ipsec_tunnel_template['wan_interface_id'])
+
+                    ipsec_tunnel.append(ipsec_tunnel_template)
+                remote_network_template['ipsec_tunnels'] = ipsec_tunnel
+
+            remote_network_groups.append(remote_network_template)
+
+        template['remote_network_groups'] = remote_network_groups
+
+    if template.get('enabled_wan_interface_ids'):
+        wan_interface_ids = []
+        for wan_interface_id in template.get('enabled_wan_interface_ids', []):
+            wan_interface_ids.append(waninterfaces_n2id.get(wan_interface_id, wan_interface_id))
+        if wan_interface_ids:
+            template['enabled_wan_interface_ids'] = wan_interface_ids
+
+    return template
+
+
+def create_prismasase_connections(config_prismasase_connections,site_id,
+                                  waninterfaces_n2id):
     """
     Create a prismasase_connections
     :param config_prismasase_connections: prismasase_connections config dict
@@ -8083,32 +8128,11 @@ def create_prismasase_connections(config_prismasase_connections, site_id, wanint
     # make a copy of prismasase_connections to create
     prismasase_connections_template = copy.deepcopy(config_prismasase_connections)
 
-    if prismasase_connections_template.get('enabled_wan_interface_ids'):
-        wan_interface_ids = []
-        for wan_interface_id in prismasase_connections_template.get('enabled_wan_interface_ids', []):
-            wan_interface_ids.append(waninterfaces_n2id.get(wan_interface_id, wan_interface_id))
-        if wan_interface_ids:
-            prismasase_connections_template['enabled_wan_interface_ids'] = wan_interface_ids
+    prismasase_connections_template = preprocess_prismasase_connection_payload(prismasase_connections_template,waninterfaces_n2id)
 
-    if prismasase_connections_template.get('remote_network_groups'):
-        remote_network_groups = []
-        for remote_network_group in prismasase_connections_template.get('remote_network_groups'):
-            ipsec_tunnels = []
-            if remote_network_group.get('ipsec_tunnels'):
-                for ipsec_tunnel in remote_network_group.get('ipsec_tunnels'):
-                    if ipsec_tunnel.get('wan_interface_id'):
-                        ipsec_tunnel['wan_interface_id'] = waninterfaces_n2id.get(ipsec_tunnel.get('wan_interface_id'),
-                                                                                  ipsec_tunnel.get('wan_interface_id'))
-                        ipsec_tunnels.append(ipsec_tunnel)
-                if ipsec_tunnels:
-                    remote_network_group['ipsec_tunnels'] = ipsec_tunnels
-            remote_network_groups.append(remote_network_group)
+    # create Prismasase Connections
+    prismasase_connections_resp = sdk.post.prismasase_connections(site_id, prismasase_connections_template)
 
-        prismasase_connections_template['remote_network_groups'] = remote_network_groups
-
-        # create Prismasase Connections
-        prismasase_connections_resp = sdk.post.prismasase_connections(site_id, prismasase_connections_template,
-                                                                      api_version='v2.1')
 
     if not prismasase_connections_resp.cgx_status:
         throw_error("Prismasase Connections creation failed: ", prismasase_connections_resp)
@@ -8136,37 +8160,17 @@ def modify_prismasase_connections(config_prismasase_connections, prismasase_conn
 
     prismasase_connections_config = {}
     # make a copy of prismasase_connections to modify
-    prismasase_connections_template = copy.deepcopy(config_prismasase_connections)
+    prismasase_connections_template = copy.deepcopy(config_prismasase_connections,waninterfaces_n2id)
 
     # Get current Prismasase Connections
-    prismasase_connections_resp = sdk.get.prismasase_connections(site_id, prismasase_connections_id, api_version='v2.1')
+    prismasase_connections_resp = sdk.get.prismasase_connections(site_id, prismasase_connections_id)
     if prismasase_connections_resp.cgx_status:
         prismasase_connections_config = prismasase_connections_resp.cgx_content
     else:
         throw_error("Unable to retrieve Prismasase Connections: ", prismasase_connections_resp)
 
-    if prismasase_connections_template.get('enabled_wan_interface_ids'):
-        wan_interface_ids = []
-        for wan_interface_id in prismasase_connections_template.get('enabled_wan_interface_ids', []):
-            wan_interface_ids.append(waninterfaces_n2id.get(wan_interface_id, wan_interface_id))
-        if wan_interface_ids:
-            prismasase_connections_template['enabled_wan_interface_ids'] = wan_interface_ids
-
-    if prismasase_connections_template.get('remote_network_groups'):
-        remote_network_groups = []
-        for remote_network_group in prismasase_connections_template.get('remote_network_groups'):
-            ipsec_tunnels = []
-            if remote_network_group.get('ipsec_tunnels'):
-                for ipsec_tunnel in remote_network_group.get('ipsec_tunnels'):
-                    if ipsec_tunnel.get('wan_interface_id'):
-                        ipsec_tunnel['wan_interface_id'] = waninterfaces_n2id.get(ipsec_tunnel.get('wan_interface_id'),
-                                                                                  ipsec_tunnel.get('wan_interface_id'))
-                        ipsec_tunnels.append(ipsec_tunnel)
-                if ipsec_tunnels:
-                    remote_network_group['ipsec_tunnels'] = ipsec_tunnels
-            remote_network_groups.append(remote_network_group)
-
-        prismasase_connections_template['remote_network_groups'] = remote_network_groups
+    prismasase_connections_template = preprocess_prismasase_connection_payload(prismasase_connections_template,
+                                                                               waninterfaces_n2id)
 
     # Check for changes:
     prismasase_connections_config_check = copy.deepcopy(prismasase_connections_config)
@@ -8179,7 +8183,7 @@ def modify_prismasase_connections(config_prismasase_connections, prismasase_conn
 
     # modify Prismasase Connections
     prismasase_connections_resp = sdk.put.prismasase_connections(site_id, prismasase_connections_id,
-                                                                 prismasase_connections_template, api_version='v2.1')
+                                                                 prismasase_connections_template)
 
     if not prismasase_connections_resp.cgx_status:
         throw_error("Prismasase Connections update failed: ", prismasase_connections_resp)
@@ -9013,21 +9017,21 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                     delete_deviceid_snmpdiscovery(leftover_deviceid_snmpdiscovery, site_id, deviceidconfigs_id, id2n=deviceid_snmpdiscovery_id2n)
 
             # -- Start Prismasase Connections config
-            prismasase_connections_resp = sdk.get.prismasase_connections(site_id,api_version="v2.1")
+            prismasase_connections_resp = sdk.get.prismasase_connections(site_id)
             if not prismasase_connections_resp.cgx_status:
                 throw_error("Prismasase Connections get failed: ", prismasase_connections_resp)
 
             prismasase_connections_cache, leftover_prismasase_connections = extract_items(
                 prismasase_connections_resp, 'prismasase_connections')
 
-            implicit_prismasase_connections_id = None
-            # There exists only one Prismasase Connections item, Fetch the prismasase_connections id from the cache
-            if prismasase_connections_cache:
-                implicit_prismasase_connections_id = prismasase_connections_cache[0].get('id')
+            prismasase_connection_n2id = build_lookup_dict_for_prisma_sase(prismasase_connections_cache,
+                                                                     key_val='is_active')
 
             for name,prismasase_connections_entry in config_prismasase_connections.items():
                 # deepcopy to modify.
-                config_prismasase_connections_record = copy.deepcopy(prismasase_connections_entry)
+                config_prismasase_connections_record = {}
+                config_prismasase_connections_record['prismaaccess_edge_location'] = [name]
+                config_prismasase_connections_record.update(prismasase_connections_entry)
                 #there will be only two entry present in config_prismasase_connections_record
                 is_active = config_prismasase_connections_record.get("is_active")
 
