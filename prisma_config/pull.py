@@ -82,6 +82,7 @@ except ImportError:
         PRISMASASE_TSG_ID = None
 
 interface_tags_skiplst = { 'AUTO_PA_SDWAN_MANAGED'}
+skip_bgp_tags = { 'AUTO_PA_SDWAN_MANAGED'}
 # python 2 and 3 handling
 if sys.version_info < (3,):
     text_type = unicode
@@ -1056,7 +1057,6 @@ def _pull_config_for_single_site(site_name_id):
     # Get prismasase_connections
 
     site[PRISMASASE_CONNECTIONS_STR] = {}
-    # response = sdk.get.prismasase_connections(site['id'],api_version='v2.1')
     response = sdk.get.prismasase_connections(site['id'])
     if not response.cgx_status:
         throw_warning("Prisma SASE Connections get failed: ", response)
@@ -1073,25 +1073,10 @@ def _pull_config_for_single_site(site_name_id):
             if wan_interface_ids:
                 prismasase_connections_template['enabled_wan_interface_ids'] = wan_interface_ids
 
-        if prismasase_connections.get('remote_network_groups'):
-            remote_network_groups = {}
-            for remote_network_group in prismasase_connections.get('remote_network_groups'):
-                ipsec_tunnel = {}
-
-                for ipsec_tunnel_template in remote_network_group.get('ipsec_tunnels', []):
-                    name_lookup_in_template(ipsec_tunnel_template, 'wan_interface_id', id_name_cache)
-                    tunnel_name = ipsec_tunnel_template.get('name')
-                    ipsec_tunnel_template.pop('authentication', '')
-                    ipsec_tunnel_template.pop('routing', '')
-                    ipsec_tunnel_template.pop('routing_configs', '')
-                    strip_meta_attributes(ipsec_tunnel_template)
-                    ipsec_tunnel.update({tunnel_name: ipsec_tunnel_template})
-                name = remote_network_group.get('name')
-                remote_network_group.pop('name','')
-                remote_network_group['ipsec_tunnels'] = ipsec_tunnel
-                remote_network_groups.update({name: remote_network_group})
-
-            prismasase_connections_template['remote_network_groups'] = remote_network_groups
+        if prismasase_connections_template.get('remote_network_groups'):
+            for remote_network_group in prismasase_connections_template.get('remote_network_groups'):
+                remote_network_group.pop('ipsec_tunnels','')
+                remote_network_group['name'] = None
 
         if prismasase_connections.get('routing_configs'):
             if prismasase_connections.get('routing_configs').get('bgp_secret'):
@@ -1445,16 +1430,15 @@ def _pull_config_for_single_site(site_name_id):
         # get BGP peer config
         element['routing']['bgp'][BGP_PEERS_CONFIG_STR] = {}
         dup_name_dict = {}
-        eonboard_desc = "Auto created and managed by SDWAN, " \
-                        "please not change anything if you are not sure about the consequence." \
-                        " Wrong config might result in traffic interruption."
 
         for bgp_peer in bgp_peers_cache:
             bgp_peer_template = copy.deepcopy(bgp_peer)
-            des = bgp_peer_template.get('description')
-            # to skip the bgp_peers using descriptions.
-            if des and des == eonboard_desc:
-                continue
+            tags = bgp_peer_template.get('tags')
+            # to skip the bgp_peers using tags.
+            if tags:
+                filtered_tags = [1 for tag in tags if tag in skip_bgp_tags]
+                if filtered_tags:
+                    continue
             # replace flat name
             name_lookup_in_template(bgp_peer_template, 'route_map_in_id', id_name_cache)
             name_lookup_in_template(bgp_peer_template, 'route_map_out_id', id_name_cache)
