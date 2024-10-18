@@ -8141,6 +8141,7 @@ def modified_payload(template_config, api_config):
     # Convert the list of enabled WAN interface IDs to a set
     template_enabled_wan_interface_ids = set(template_config.get('enabled_wan_interface_ids', []))
     template_routing_config = template_config.get('routing_configs', {})
+    api_routing_config = api_config.get('routing_configs', {})
     template_remote_network_groups = template_config.get('remote_network_groups', [])
     api_remote_network_groups = api_config.get('remote_network_groups', [])
 
@@ -8158,7 +8159,7 @@ def modified_payload(template_config, api_config):
     existing_wan_interface_ids = api_wan_interface_ids & template_enabled_wan_interface_ids
     ipsec_tunnel_template = {
         "name": None,
-        "routing_configs": template_routing_config
+        "routing_configs": copy.deepcopy(template_routing_config)
     }
 
     new_ipsec_tunnels = []
@@ -8178,7 +8179,12 @@ def modified_payload(template_config, api_config):
     # There can be multiple remote networks group but only first one will be used.
     if template_remote_network_groups:
         template_remote_network_group = template_remote_network_groups[0]
+        if not template_remote_network_group.get('name') and api_remote_network_groups:
+            template_remote_network_group['name'] = api_remote_network_groups[0].get('name')
         template_remote_network_group['ipsec_tunnels'] = new_ipsec_tunnels
+
+    if not template_routing_config.get('bgp_secret'):
+        template_routing_config['bgp_secret'] = api_routing_config.get('bgp_secret')
 def modify_prismasase_connections(config_prismasase_connections, prismasase_connections_id, site_id,
                                   waninterfaces_n2id):
     """
@@ -8192,7 +8198,7 @@ def modify_prismasase_connections(config_prismasase_connections, prismasase_conn
 
     prismasase_connections_config = {}
     # make a copy of prismasase_connections to modify
-    prismasase_connections_template = copy.deepcopy(config_prismasase_connections,waninterfaces_n2id)
+    prismasase_connections_template = copy.deepcopy(config_prismasase_connections)
 
     # Get current Prismasase Connections
     prismasase_connections_resp = sdk.get.prismasase_connections(site_id, prismasase_connections_id)
