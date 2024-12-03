@@ -163,12 +163,19 @@ CELLULAR_MODULES_SIM_SECURITY_STR = "cellular_modules_sim_security"
 ELEMENT_CELLULAR_MODULES_STR = "element_cellular_modules"
 ELEMENT_CELLULAR_MODULES_FIRMWARE_STR = "element_cellular_modules_firmware"
 RADII_STR = "radii"
+TACACS_STR = "tacacs"
 MULTICASTSOURCESITECONFIGS_STR = "multicastsourcesiteconfigs"
 # MULTICASTPEERGROUPS_STR = "multicastpeergroups"
 DEVICE_ID_CONFIGS_STR = "deviceidconfigs"
 SNMPDISCOVERY_STR = "snmpdiscoverystartnodes"
 ELEMENT_DEVICEIDCONFIGS_STR = "element_deviceidconfigs"
+<<<<<<< HEAD:prisma_config/pull.py
 PRISMASASE_CONNECTIONS_STR = "prismasase_connections"
+=======
+PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = "pathprefixdistributionfilterassociation"
+PATHPREFIXDISTRIBUTIONFILTERS_STR = "pathprefixdistributionfilters"
+PREFIXDISTRIBUTIONSPOKELISTS_STR = "prefixdistributionspokelists"
+>>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 # Global Config Cache holders
 sites_cache = []
@@ -211,7 +218,11 @@ vrfcontextprofiles_cache = []
 perfmgmtpolicysetstacks_cache = []
 perfmgmtpolicysets_cache = []
 deviceidprofiles_cache = []
+<<<<<<< HEAD:prisma_config/pull.py
 prismasase_connections_cache = []
+=======
+tacacsplusprofile_cache =[]
+>>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 id_name_cache = {}
 sites_n2id = {}
@@ -320,6 +331,7 @@ def update_global_cache():
     global apnprofiles_cache
     global multicastpeergroups_cache
     global radii_cache
+    global tacacsplusprofile_cache
     global multicastsourcesiteconfigs_cache
     global vrfcontexts_cache
     global vrfcontextprofiles_cache
@@ -480,6 +492,9 @@ def update_global_cache():
     deviceidprofiles_resp = sdk.get.deviceidprofiles()
     deviceidprofiles_cache, _ = extract_items(deviceidprofiles_resp, 'deviceidprofiles')
 
+    tacacsplusprofile_resp = sdk.get.tacacs_plus_profiles()
+    tacacsplusprofile_cache, _ = extract_items(tacacsplusprofile_resp, 'tacacsplusprofiles')
+
     # sites name
     id_name_cache.update(build_lookup_dict(sites_cache, key_val='id', value_val='name'))
 
@@ -581,6 +596,8 @@ def update_global_cache():
     # radii name
     id_name_cache.update(build_lookup_dict(radii_cache, key_val='id', value_val='name'))
 
+    id_name_cache.update(build_lookup_dict(tacacsplusprofile_cache, key_val='id', value_val='name'))
+
     id_name_cache.update(build_lookup_dict(vrfcontexts_cache, key_val='id', value_val='name'))
 
     id_name_cache.update(build_lookup_dict(vrfcontextprofiles_cache, key_val='id', value_val='name'))
@@ -654,11 +671,18 @@ def build_version_strings():
     global ELEMENT_CELLULAR_MODULES_STR
     global ELEMENT_CELLULAR_MODULES_FIRMWARE_STR
     global RADII_STR
+    global TACACS_STR
     global MULTICASTSOURCESITECONFIGS_STR
     global DEVICE_ID_CONFIGS_STR
     global SNMPDISCOVERY_STR
     global ELEMENT_DEVICEIDCONFIGS_STR
+<<<<<<< HEAD:prisma_config/pull.py
     global PRISMASASE_CONNECTIONS_STR
+=======
+    global PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR
+    global PATHPREFIXDISTRIBUTIONFILTERS_STR
+    global PREFIXDISTRIBUTIONSPOKELISTS_STR
+>>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
     if not STRIP_VERSIONS:
         # Config container strings
@@ -699,12 +723,19 @@ def build_version_strings():
         ELEMENT_CELLULAR_MODULES_STR = add_version_to_object(sdk.get.element_cellular_modules, "element_cellular_modules")
         ELEMENT_FIRMWARE_CELLULAR_MODULES_STR = add_version_to_object(sdk.get.element_cellular_modules_firmware, "element_cellular_modules_firmware")
         RADII_STR = add_version_to_object(sdk.get.radii, "radii")
+        TACACS_STR = add_version_to_object(sdk.get.tacacs_plus_servers, "tacacs")
         MULTICASTSOURCESITECONFIGS_STR = add_version_to_object(sdk.get.multicastsourcesiteconfigs, "multicastsourcesiteconfigs")
         DEVICE_ID_CONFIGS_STR = add_version_to_object(sdk.get.deviceidconfigs, "deviceidconfigs")
         SNMPDISCOVERY_STR = add_version_to_object(sdk.get.deviceidconfigs_snmpdiscoverystartnodes, "snmpdiscoverystartnodes")
         ELEMENT_DEVICEIDCONFIGS_STR = add_version_to_object(sdk.get.element_deviceidconfigs, "element_deviceidconfigs")
+<<<<<<< HEAD:prisma_config/pull.py
         PRISMASASE_CONNECTIONS_STR = add_version_to_object(sdk.get.prismasase_connections, "prismasase_connections")
 
+=======
+        PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = add_version_to_object(sdk.get.pathprefixdistributionfilterassociation, "pathprefixdistributionfilterassociation")
+        PATHPREFIXDISTRIBUTIONFILTERS_STR = add_version_to_object(sdk.get.pathprefixdistributionfilters, "pathprefixdistributionfilters")
+        PREFIXDISTRIBUTIONSPOKELISTS_STR = add_version_to_object(sdk.get.prefixdistributionspokelists, "prefixdistributionspokelists")
+>>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 def strip_meta_attributes(obj, leave_name=False, report_id=None):
     """
@@ -1054,6 +1085,7 @@ def _pull_config_for_single_site(site_name_id):
 
     delete_if_empty(site, DEVICE_ID_CONFIGS_STR)
 
+<<<<<<< HEAD:prisma_config/pull.py
     # Get prismasase_connections
 
     site[PRISMASASE_CONNECTIONS_STR] = {}
@@ -1088,6 +1120,74 @@ def _pull_config_for_single_site(site_name_id):
         site[PRISMASASE_CONNECTIONS_STR][location_name] = prismasase_connections_template
 
     delete_if_empty(site, PRISMASASE_CONNECTIONS_STR)
+=======
+    # Get PATHPREFIXDISTRIBUTIONFILTERS
+    site[PATHPREFIXDISTRIBUTIONFILTERS_STR] = {}
+    response = sdk.get.pathprefixdistributionfilters(site['id'])
+    if not response.cgx_status:
+        throw_error("PATHPREFIXDISTRIBUTIONFILTERS Config Fetch Failed: ", response)
+
+    pathprefixdistributionfilters_items = response.cgx_content['items']
+    for pathprefixdistributionfilter in pathprefixdistributionfilters_items:
+        pathprefixdistributionfilters_template = copy.deepcopy(pathprefixdistributionfilter)
+        pathprefixdistributionfilter_name = pathprefixdistributionfilters_template.get('name')
+        if pathprefixdistributionfilters_template.get('path_prefix_filter_list'):
+            for path_prefix_filter in pathprefixdistributionfilters_template.get('path_prefix_filter_list'):
+                if path_prefix_filter.get('vrf_context_id'):
+                    path_prefix_filter['vrf_context_id'] = id_name_cache.get(path_prefix_filter['vrf_context_id'])
+        strip_meta_attributes(pathprefixdistributionfilters_template)
+        site[PATHPREFIXDISTRIBUTIONFILTERS_STR][pathprefixdistributionfilter_name] = pathprefixdistributionfilters_template
+
+    delete_if_empty(site, PATHPREFIXDISTRIBUTIONFILTERS_STR)
+
+    # Get PATHPREFIXDISTRIBUTIONFILTERASSOCIATION
+    site[PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR] = []
+    response = sdk.get.pathprefixdistributionfilterassociation(site['id'])
+    if not response.cgx_status:
+        throw_error("PATHPREFIXDISTRIBUTIONFILTERASSOCIATION Config Fetch Failed: ", response)
+
+    pathprefixdistributionfilterassociation_items = response.cgx_content['items']
+    for pathprefixdistributionfilterassociation in pathprefixdistributionfilterassociation_items:
+        pathprefixdistributionfilterassociation_template = copy.deepcopy(pathprefixdistributionfilterassociation)
+
+        if pathprefixdistributionfilterassociation_template.get('peer_site_ids'):
+            peer_sites = []
+            for peer_site in pathprefixdistributionfilterassociation_template.get('peer_site_ids'):
+                peer_sites.append(id_name_cache.get(peer_site))
+            pathprefixdistributionfilterassociation_template['peer_site_ids'] = peer_sites
+
+        if pathprefixdistributionfilterassociation_template.get('path_prefix_distribution_filter_id'):
+            path_prefix_distribution_filter_id = pathprefixdistributionfilterassociation_template.get('path_prefix_distribution_filter_id')
+
+            prefixdistributionfilters_resp = sdk.get.pathprefixdistributionfilters(site['id'], path_prefix_distribution_filter_id)
+            if not prefixdistributionfilters_resp.cgx_status:
+                throw_error("PATHPREFIXDISTRIBUTIONFILTERS Config Fetch Failed: ", prefixdistributionfilters_resp)
+
+            pathprefixdistributionfilter = prefixdistributionfilters_resp.cgx_content
+            pathprefixdistributionfilterassociation_template['path_prefix_distribution_filter_id'] = pathprefixdistributionfilter.get('name')
+        strip_meta_attributes(pathprefixdistributionfilterassociation_template, leave_name=True)
+        site[PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR].append(pathprefixdistributionfilterassociation_template)
+
+    delete_if_empty(site, PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR)
+
+    # Get PREFIXDISTRIBUTIONSPOKELISTS
+    site[PREFIXDISTRIBUTIONSPOKELISTS_STR] = []
+    response = sdk.get.prefixdistributionspokelists(site['id'])
+    if not response.cgx_status:
+        throw_error("PREFIXDISTRIBUTIONSPOKELISTS Config Fetch Failed: ", response)
+
+    prefixdistributionspokelists_items = response.cgx_content['items']
+    for prefixdistributionspokelist in prefixdistributionspokelists_items:
+        prefixdistributionspokelists_template = copy.deepcopy(prefixdistributionspokelist)
+        if prefixdistributionspokelists_template.get('spoke_site_ids'):
+            spoke_site_id_name_list = []
+            for spoke_site_id in prefixdistributionspokelists_template.get('spoke_site_ids'):
+                spoke_site_id_name_list.append(id_name_cache.get(spoke_site_id))
+            prefixdistributionspokelists_template['spoke_site_ids'] = spoke_site_id_name_list
+        strip_meta_attributes(prefixdistributionspokelists_template)
+        site[PREFIXDISTRIBUTIONSPOKELISTS_STR].append(prefixdistributionspokelists_template)
+    delete_if_empty(site, PREFIXDISTRIBUTIONSPOKELISTS_STR)
+>>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
     # Get Elements
     site[ELEMENTS_STR] = {}
@@ -1203,6 +1303,7 @@ def _pull_config_for_single_site(site_name_id):
             if interface['id'] in skip_if_set:
                 continue
             if_type = interface.get('type')
+
             if not FORCE_PARENTS and interface_id in parent_id_list:
                 # interface is a parent, skip
                 # Pull interface config for bypasspair and virtual interface as it can have subif/pppoe/servicelink configs
@@ -1606,6 +1707,22 @@ def _pull_config_for_single_site(site_name_id):
 
         delete_if_empty(element, RADII_STR)
 
+        # Get TACACS
+        element[TACACS_STR] = {}
+        response = sdk.get.tacacs_plus_servers(site['id'], element['id'])
+        if not response.cgx_status:
+            throw_error("TACACS AAA get failed: ", response)
+        tacacs_items = response.cgx_content['items']
+        for tacacs in tacacs_items:
+            tacacs_template = copy.deepcopy(tacacs)
+            if tacacs_template.get("tacacs_plus_profile_id"):
+                tacacs_template["tacacs_plus_profile_id"] = id_name_cache.get(tacacs_template.get("tacacs_plus_profile_id"), tacacs_template.get("tacacs_plus_profile_id"))
+            if tacacs_template.get("source_interface_id"):
+                source_interface_id = tacacs_template.get("source_interface_id")
+                tacacs_template["source_interface_id"] = id_name_cache.get(source_interface_id, source_interface_id)
+            strip_meta_attributes(tacacs_template)
+            element[TACACS_STR][tacacs.get("name")] = tacacs_template
+        delete_if_empty(element, TACACS_STR)
 
         # Get syslog
         element[SYSLOG_STR] = []
