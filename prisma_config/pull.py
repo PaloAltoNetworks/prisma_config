@@ -169,6 +169,8 @@ MULTICASTSOURCESITECONFIGS_STR = "multicastsourcesiteconfigs"
 DEVICE_ID_CONFIGS_STR = "deviceidconfigs"
 SNMPDISCOVERY_STR = "snmpdiscoverystartnodes"
 ELEMENT_DEVICEIDCONFIGS_STR = "element_deviceidconfigs"
+OSPFCONFIGS_STR = "ospfconfigs"
+OSPFGLOBALCONFIGS_STR = "ospfglobalconfigs"
 PRISMASASE_CONNECTIONS_STR = "prismasase_connections"
 PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = "pathprefixdistributionfilterassociation"
 PATHPREFIXDISTRIBUTIONFILTERS_STR = "pathprefixdistributionfilters"
@@ -670,6 +672,8 @@ def build_version_strings():
     global DEVICE_ID_CONFIGS_STR
     global SNMPDISCOVERY_STR
     global ELEMENT_DEVICEIDCONFIGS_STR
+    global OSPFCONFIGS_STR
+    global OSPFGLOBALCONFIGS_STR
     global PRISMASASE_CONNECTIONS_STR
     global PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR
     global PATHPREFIXDISTRIBUTIONFILTERS_STR
@@ -719,6 +723,8 @@ def build_version_strings():
         DEVICE_ID_CONFIGS_STR = add_version_to_object(sdk.get.deviceidconfigs, "deviceidconfigs")
         SNMPDISCOVERY_STR = add_version_to_object(sdk.get.deviceidconfigs_snmpdiscoverystartnodes, "snmpdiscoverystartnodes")
         ELEMENT_DEVICEIDCONFIGS_STR = add_version_to_object(sdk.get.element_deviceidconfigs, "element_deviceidconfigs")
+        OSPFCONFIGS_STR = add_version_to_object(sdk.get.ospfconfigs, "ospfconfigs")
+        OSPFGLOBALCONFIGS_STR = add_version_to_object(sdk.get.ospfglobalconfigs, "ospfglobalconfigs")
         PRISMASASE_CONNECTIONS_STR = add_version_to_object(sdk.get.prismasase_connections, "prismasase_connections")
         PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = add_version_to_object(sdk.get.pathprefixdistributionfilterassociation, "pathprefixdistributionfilterassociation")
         PATHPREFIXDISTRIBUTIONFILTERS_STR = add_version_to_object(sdk.get.pathprefixdistributionfilters, "pathprefixdistributionfilters")
@@ -1978,6 +1984,37 @@ def _pull_config_for_single_site(site_name_id):
             # names used, but config doesn't index by name for this value currently.
             element[ELEMENT_DEVICEIDCONFIGS_STR].append(element_deviceidconfig_template)
         delete_if_empty(element, ELEMENT_DEVICEIDCONFIGS_STR)
+
+        # Get ospfconfigs
+        element[OSPFCONFIGS_STR] = {}
+        response = sdk.get.ospfconfigs(site['id'], element['id'])
+        if not response.cgx_status:
+            throw_error("Element Ospfconfigs get failed: ", response)
+        element_ospfconfigs = response.cgx_content['items']
+        for element_ospfconfig in element_ospfconfigs:
+            name_lookup_in_template(element_ospfconfig, 'prefix_adv_route_map_id', id_name_cache)
+            name_lookup_in_template(element_ospfconfig, 'redistribute_route_map_id', id_name_cache)
+            name_lookup_in_template(element_ospfconfig, 'vrf_context_id', id_name_cache)
+            if element_ospfconfig.get('interfaces'):
+                for interface in element_ospfconfig.get('interfaces'):
+                    name_lookup_in_template(interface, 'interface_id', id_name_cache)
+            element_ospfconfig_template = copy.deepcopy(element_ospfconfig)
+            name = element_ospfconfig_template.get('name')
+            strip_meta_attributes(element_ospfconfig_template)
+            element[OSPFCONFIGS_STR][name] = element_ospfconfig_template
+        delete_if_empty(element, OSPFCONFIGS_STR)
+
+        # Get ospfglobalconfigs
+        element[OSPFGLOBALCONFIGS_STR] = []
+        response = sdk.get.ospfglobalconfigs(site['id'], element['id'])
+        if not response.cgx_status:
+            throw_error("Element Ospfglobalconfigs get failed: ", response)
+        element_ospfglobalconfigs = response.cgx_content['items']
+        for element_ospfglobalconfig in element_ospfglobalconfigs:
+            element_ospfglobalconfig_template = copy.deepcopy(element_ospfglobalconfig)
+            strip_meta_attributes(element_ospfglobalconfig_template)
+            element[OSPFGLOBALCONFIGS_STR].append(element_ospfglobalconfig_template)
+        delete_if_empty(element, OSPFGLOBALCONFIGS_STR)
 
         # Get toolkit
         response = sdk.get.elementaccessconfigs(element['id'])

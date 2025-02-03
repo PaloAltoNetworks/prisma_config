@@ -169,7 +169,8 @@ element_put_items = [
     "device_profile_id",
     "main_power_usage_threshold",
     "led_config",
-    "port_channel_config"
+    "port_channel_config",
+    "hub_cluster_config"
 ]
 
 createable_interface_types = [
@@ -287,6 +288,8 @@ vrfcontextprofiles_cache = []
 perfmgmtpolicysetstacks_cache = []
 perfmgmtpolicysets_cache = []
 deviceidprofiles_cache = []
+ospfconfig_cache = []
+ospfglobalconfig_cache = []
 prismasase_connections_cache = []
 
 # Most items need Name to ID maps.
@@ -330,6 +333,8 @@ vrfcontextprofiles_n2id = {}
 perfmgmtpolicysetstacks_n2id = {}
 perfmgmtpolicysets_n2id = {}
 deviceidprofiles_n2id = {}
+ospfconfig_n2id = {}
+ospfglobalconfig_n2id = {}
 prismasase_connections_n2id = {}
 
 # Machines/elements need serial to ID mappings
@@ -524,6 +529,8 @@ def update_global_cache():
     global perfmgmtpolicysetstacks_cache
     global perfmgmtpolicysets_cache
     global deviceidprofiles_cache
+    global ospfconfig_cache
+    global ospfglobalconfig_cache
     global prismasase_connections_cache
 
     global sites_n2id
@@ -566,6 +573,9 @@ def update_global_cache():
     global perfmgmtpolicysetstacks_n2id
     global perfmgmtpolicysets_n2id
     global deviceidprofiles_n2id
+    global ospfconfig_n2id
+    global ospfglobalconfig_n2id
+    global prismasase_connections_n2id
 
     global elements_byserial
     global machines_byserial
@@ -573,7 +583,7 @@ def update_global_cache():
     global securityzones_id2n
     global natlocalprefixes_id2n
     global ipfixlocalprefix_id2n
-    global prismasase_connections_n2id
+
 
     # sites
     sites_resp = sdk.get.sites()
@@ -1019,12 +1029,16 @@ def parse_element_config(config_element):
                                                                        default={})
     config_radii, _ = config_lower_version_get(config_element, 'radii', sdk.put.radii, default = {})
     config_element_deviceidconfigs, _ = config_lower_version_get(config_element, 'element_deviceidconfigs', sdk.put.element_deviceidconfigs, default = [])
+    config_ospfconfig, _ = config_lower_version_get(config_element, 'ospfconfigs', sdk.put.ospfconfigs, default={})
+    config_ospfglobalconfig, _ = config_lower_version_get(config_element, 'ospfglobalconfigs',
+                                                          sdk.put.ospfglobalconfigs, default=[])
     config_tacacs, _ = config_lower_version_get(config_element, 'tacacs_plus_servers', sdk.put.tacacs_plus_servers, default = {})
 
     return config_interfaces, config_routing, config_syslog, config_ntp, config_snmp, config_toolkit, \
         config_element_extensions, config_element_security_zones, config_dnsservices, config_app_probe, \
         config_ipfix, config_multicastglobalconfigs, config_multicastrps, config_element_cellular_modules, \
-        config_cellular_modules_sim_security, config_radii, config_element_deviceidconfigs, config_tacacs
+        config_cellular_modules_sim_security, config_radii, config_element_deviceidconfigs, config_ospfconfig, \
+        config_ospfglobalconfig, config_tacacs
 
 
 def parse_routing_config(config_routing):
@@ -8459,6 +8473,137 @@ def modify_radii(config_radii, radii_id, element_id, interfaces_n2id, yml_interf
 
     return radius_id
 
+def create_ospfconfig(config_ospfconfig, site_id, element_id, interfaces_n2id, routemap_n2id):
+    """
+    Create a ospfconfig
+    :param config_ospfconfig: ospfconfig config dict
+    :param site_id: Site ID to use
+    :param element_id: Element ID to use
+    :param interfaces_n2id: Interface name to id map
+    :param routemap_n2id: Routemap name to id map
+    :return: Created ospfconfig ID
+    """
+    # make a copy of ospfconfig to modify
+    ospfconfig_template = copy.deepcopy(config_ospfconfig)
+    name_lookup_in_template(ospfconfig_template, 'prefix_adv_route_map_id', routemap_n2id)
+    name_lookup_in_template(ospfconfig_template, 'redistribute_route_map_id', routemap_n2id)
+    name_lookup_in_template(ospfconfig_template, 'vrf_context_id', vrfcontexts_n2id)
+    if ospfconfig_template.get('interfaces'):
+        for interface in ospfconfig_template.get('interfaces'):
+            name_lookup_in_template(interface, 'interface_id', interfaces_n2id)
+    #create ospfconfig
+    ospfconfig_resp = sdk.post.ospfconfigs(site_id, element_id, ospfconfig_template)
+    if not ospfconfig_resp.cgx_status:
+        throw_error("Ospfconfig creation failed: ", ospfconfig_resp)
+    ospfconfig_id = ospfconfig_resp.cgx_content.get('id')
+    ospfconfig_name = ospfconfig_resp.cgx_content.get('name', ospfconfig_id)
+    if not ospfconfig_id:
+        throw_error("Unable to determine Ospfconfig attributes (ID {0})..".format(ospfconfig_id))
+    output_message("   Created ospfconfig {0}.".format(ospfconfig_name))
+    return ospfconfig_id
+
+def modify_ospfconfig(config_ospfconfig, ospfconfig_id, site_id, element_id, interfaces_n2id, routemap_n2id):
+    """
+    Modify the existing ospfconfig
+    :param config_ospfconfig: ospfconfig config dict
+    :param ospfconfig_id: Existing Ospfconfig ID
+    :param site_id: Site ID to use
+    :param element_id: Element ID to use
+    :param interfaces_n2id: Interface name to id map
+    :param routemap_n2id: Routemap name to id map
+    :return: Returned ospfconfig ID
+    """
+    ospfconfig_config = {}
+    # make a copy of ospfconfig to modify
+    ospfconfig_template = copy.deepcopy(config_ospfconfig)
+    name_lookup_in_template(ospfconfig_template, 'prefix_adv_route_map_id', routemap_n2id)
+    name_lookup_in_template(ospfconfig_template, 'redistribute_route_map_id', routemap_n2id)
+    name_lookup_in_template(ospfconfig_template, 'vrf_context_id', vrfcontexts_n2id)
+    if ospfconfig_template.get('interfaces'):
+        for interface in ospfconfig_template.get('interfaces'):
+            name_lookup_in_template(interface, 'interface_id', interfaces_n2id)
+    # Get current Ospfconfig
+    ospfconfig_resp = sdk.get.ospfconfigs(site_id, element_id, ospfconfig_id)
+    if ospfconfig_resp.cgx_status:
+        ospfconfig_config = ospfconfig_resp.cgx_content
+    else:
+        throw_error("Unable to retrieve ospfconfig: ", ospfconfig_resp)
+    # Check for changes:
+    ospfconfig_config_check = copy.deepcopy(ospfconfig_config)
+    ospfconfig_config.update(ospfconfig_template)
+    if not force_update and ospfconfig_config == ospfconfig_config_check:
+        ospfconfig_id = ospfconfig_config_check.get('id')
+        ospfconfig_name = ospfconfig_config_check.get('name')
+        ospfconfig_n2id[ospfconfig_name] = ospfconfig_id
+        output_message("   No Change for Ospfconfig {0}.".format(ospfconfig_name))
+        return ospfconfig_id
+    #modify ospfconfig
+    ospfconfig_resp = sdk.put.ospfconfigs(site_id, element_id, ospfconfig_id, ospfconfig_config)
+    if not ospfconfig_resp.cgx_status:
+        throw_error("Ospfconfig update failed: ", ospfconfig_resp)
+    ospfconfig_id = ospfconfig_resp.cgx_content.get('id')
+    ospfconfig_name = ospfconfig_resp.cgx_content.get('name', ospfconfig_id)
+    if not ospfconfig_id:
+        throw_error("Unable to determine Ospfconfig attributes (ID {0})..".format(ospfconfig_id))
+    output_message("   Updated Ospfconfig {0}.".format(ospfconfig_name))
+    return ospfconfig_id
+
+def delete_ospfconfig(leftover_ospfconfigs, site_id, element_id, id2n=None):
+        """
+        Delete a list of OspfConfig
+        :param leftover_ospfconfigs: list of OspfConfig IDs
+        :param site_id: Site ID to use
+        :param element_id: Element ID to use
+        :param id2n: Optional - ID to Name lookup dict
+        :return: None
+        """
+        # ensure id2n is empty dict if not set.
+        if id2n is None:
+            id2n = {}
+        for ospfconfig_id in leftover_ospfconfigs:
+            # delete all leftover OspfConfig.
+            output_message("   Deleting Unconfigured OspfConfig {0}.".format(id2n.get(ospfconfig_id, ospfconfig_id)))
+            ospfconfig_del_resp = sdk.delete.ospfconfigs(site_id, element_id, ospfconfig_id)
+            if not ospfconfig_del_resp.cgx_status:
+                throw_error("Could not delete OspfConfig {0}: ".format(id2n.get(ospfconfig_id, ospfconfig_id)),
+                            ospfconfig_del_resp)
+        return
+
+def modify_ospfglobalconfig(config_ospfglobalconfig, site_id, element_id):
+    """
+    Modify the existing ospfglobalconfig
+    :param config_ospfglobalconfig: ospfglobalconfig config list
+    :param element_id: Element ID to use
+    :return: Returned ospfglobalconfig ID
+    """
+    ospfglobalconfig_config = {}
+    # make a copy of ospfglobalconfig to modify
+    ospfglobalconfig_template = copy.deepcopy(config_ospfglobalconfig[0])
+    # Get current Ospfconfig
+    ospfglobalconfig_resp = sdk.get.ospfglobalconfigs(site_id, element_id)
+    if ospfglobalconfig_resp.cgx_status:
+        ospfglobalconfig_configs, _ = extract_items(ospfglobalconfig_resp, 'ospfglobalconfigs')
+        ospfglobalconfig_config = ospfglobalconfig_configs[0]
+    else:
+        throw_error("Unable to retrieve ospfglobalconfig: ", ospfglobalconfig_resp)
+    ospfglobalconfig_id = ospfglobalconfig_config.get('id')
+    # Check for changes:
+    ospfglobalconfig_check = copy.deepcopy(ospfglobalconfig_config)
+    ospfglobalconfig_config.update(ospfglobalconfig_template)
+    if not force_update and ospfglobalconfig_config == ospfglobalconfig_check:
+        ospfglobalconfig_id = ospfglobalconfig_check.get('id')
+        output_message("   No Change for Ospfglobalconfig {0}.".format(ospfglobalconfig_id))
+        return ospfglobalconfig_id
+    #modify ospfglobalconfig
+    ospfglobalconfig_resp = sdk.put.ospfglobalconfigs(site_id, element_id, ospfglobalconfig_id, ospfglobalconfig_config)
+    if not ospfglobalconfig_resp.cgx_status:
+        throw_error("Ospfglobalconfig update failed: ", ospfglobalconfig_resp)
+    ospfglobalconfig_id = ospfglobalconfig_resp.cgx_content.get('id')
+    if not ospfglobalconfig_id:
+        throw_error("Unable to determine Ospfglobalconfig attributes (ID {0})..".format(ospfglobalconfig_id))
+    output_message("   Updated Ospfglobalconfig {0}.".format(ospfglobalconfig_id))
+    return ospfglobalconfig_id
+
 def create_tacacs(config_tacacs, site_id, element_id, interfaces_n2id, tacacsplusprofile_n2id, version=None):
     """
     Create a Tacacs
@@ -9816,7 +9961,8 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 config_toolkit, config_element_extensions, config_element_security_zones, \
                 config_dnsservices, config_app_probe, config_ipfix, config_multicastglobalconfigs, \
                 config_multicastrps, config_element_cellular_modules, config_cellular_modules_sim_security, config_radii, \
-                config_element_deviceidconfigs, config_tacacs = parse_element_config(config_element)
+                config_element_deviceidconfigs, config_ospfconfig, config_ospfglobalconfig, \
+                config_tacacs = parse_element_config(config_element)
 
                 interfaces_version = use_sdk_yaml_version(config_element, 'interfaces', sdk.put.interfaces,
                                                                 default={}, sdk_or_yaml=apiversion)
@@ -12280,6 +12426,51 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                                           if entry != bgp_peer_id]
                 # END BGP PEERS
 
+                # -- Start Ospf config
+                ospfconfig_resp = sdk.get.ospfconfigs(site_id, element_id)
+                if not ospfconfig_resp.cgx_status:
+                    throw_error("Ospfconfig get failed: ", ospfconfig_resp)
+
+                ospfconfig_cache, leftover_ospfconfigs = extract_items(ospfconfig_resp, 'ospfconfig')
+
+                # build lookup cache
+                ospfconfig_n2id = build_lookup_dict(ospfconfig_cache)
+                ospfconfig_id2n = build_lookup_dict(ospfconfig_cache, key_val="id", value_val="name")
+
+                # iterate configs (dict)
+                for ospfconfig_entry, ospfconfig_value in config_ospfconfig.items():
+                    # deepcopy to modify.
+                    config_ospfconfig_record = copy.deepcopy(ospfconfig_value)
+                    # recombine object
+                    config_ospfconfig_object = recombine_named_key_value(ospfconfig_entry,
+                                                                         ospfconfig_value,
+                                                                         name_key='name')
+                    # look for implicit ID in object.
+                    implicit_ospfconfig_id = config_ospfconfig_object.get('id')
+                    # Determine ospfconfig ID.
+                    name_ospfconfig_id = ospfconfig_n2id.get(ospfconfig_entry)
+                    if implicit_ospfconfig_id is not None:
+                        ospfconfig_id = implicit_ospfconfig_id
+                    elif name_ospfconfig_id is not None:
+                        # look up ID by name on existing interfaces.
+                        ospfconfig_id = name_ospfconfig_id
+                    else:
+                        # no radii object.
+                        ospfconfig_id = None
+                    if ospfconfig_id is not None:
+                        # Ospfconfig exists, modify.
+                        ospfconfig_id = modify_ospfconfig(config_ospfconfig_record, ospfconfig_id, site_id,
+                                                          element_id, interfaces_n2id, routemaps_n2id)
+                    else:
+                        # Ospfconfig does not exist, create.
+                        config_ospfconfig_record["name"] = ospfconfig_entry
+                        ospfconfig_id = create_ospfconfig(config_ospfconfig_record, site_id, element_id,
+                                                          interfaces_n2id, routemaps_n2id)
+                    # remove from delete queue
+                    leftover_ospfconfigs = [entry for entry in leftover_ospfconfigs if entry != ospfconfig_id]
+
+                # -- End Ospfconfig config
+
                 # START STATIC ROUTING
                 staticroutes_resp = sdk.get.staticroutes(site_id, element_id)
                 staticroutes_cache, leftover_staticroutes = extract_items(staticroutes_resp, 'staticroutes')
@@ -12896,6 +13087,12 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                                                        if entry != aspath_access_list_id]
                 delete_aspath_access_lists(leftover_aspath_access_lists, site_id, element_id,
                                            id2n=aspath_access_lists_id2n)
+
+                # No deletes for Ospf Global Configs
+
+                # delete remaining Ospf Configs
+                ospfconfig_id2n = build_lookup_dict(ospfconfig_cache, key_val='id', value_val='name')
+                delete_ospfconfig(leftover_ospfconfigs, site_id, element_id, id2n=ospfconfig_id2n)
 
                 # Reset local as num after removing all the Bgp peers.
                 if not config_routing_bgp_global.get("local_as_num"):
