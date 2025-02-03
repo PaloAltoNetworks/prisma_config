@@ -163,19 +163,16 @@ CELLULAR_MODULES_SIM_SECURITY_STR = "cellular_modules_sim_security"
 ELEMENT_CELLULAR_MODULES_STR = "element_cellular_modules"
 ELEMENT_CELLULAR_MODULES_FIRMWARE_STR = "element_cellular_modules_firmware"
 RADII_STR = "radii"
-TACACS_STR = "tacacs"
+TACACS_STR = "tacacs_plus_servers"
 MULTICASTSOURCESITECONFIGS_STR = "multicastsourcesiteconfigs"
 # MULTICASTPEERGROUPS_STR = "multicastpeergroups"
 DEVICE_ID_CONFIGS_STR = "deviceidconfigs"
 SNMPDISCOVERY_STR = "snmpdiscoverystartnodes"
 ELEMENT_DEVICEIDCONFIGS_STR = "element_deviceidconfigs"
-<<<<<<< HEAD:prisma_config/pull.py
 PRISMASASE_CONNECTIONS_STR = "prismasase_connections"
-=======
 PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = "pathprefixdistributionfilterassociation"
 PATHPREFIXDISTRIBUTIONFILTERS_STR = "pathprefixdistributionfilters"
 PREFIXDISTRIBUTIONSPOKELISTS_STR = "prefixdistributionspokelists"
->>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 # Global Config Cache holders
 sites_cache = []
@@ -218,11 +215,8 @@ vrfcontextprofiles_cache = []
 perfmgmtpolicysetstacks_cache = []
 perfmgmtpolicysets_cache = []
 deviceidprofiles_cache = []
-<<<<<<< HEAD:prisma_config/pull.py
 prismasase_connections_cache = []
-=======
 tacacsplusprofile_cache =[]
->>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 id_name_cache = {}
 sites_n2id = {}
@@ -676,13 +670,10 @@ def build_version_strings():
     global DEVICE_ID_CONFIGS_STR
     global SNMPDISCOVERY_STR
     global ELEMENT_DEVICEIDCONFIGS_STR
-<<<<<<< HEAD:prisma_config/pull.py
     global PRISMASASE_CONNECTIONS_STR
-=======
     global PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR
     global PATHPREFIXDISTRIBUTIONFILTERS_STR
     global PREFIXDISTRIBUTIONSPOKELISTS_STR
->>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
     if not STRIP_VERSIONS:
         # Config container strings
@@ -723,19 +714,15 @@ def build_version_strings():
         ELEMENT_CELLULAR_MODULES_STR = add_version_to_object(sdk.get.element_cellular_modules, "element_cellular_modules")
         ELEMENT_FIRMWARE_CELLULAR_MODULES_STR = add_version_to_object(sdk.get.element_cellular_modules_firmware, "element_cellular_modules_firmware")
         RADII_STR = add_version_to_object(sdk.get.radii, "radii")
-        TACACS_STR = add_version_to_object(sdk.get.tacacs_plus_servers, "tacacs")
+        TACACS_STR = add_version_to_object(sdk.get.tacacs_plus_servers, "tacacs_plus_servers")
         MULTICASTSOURCESITECONFIGS_STR = add_version_to_object(sdk.get.multicastsourcesiteconfigs, "multicastsourcesiteconfigs")
         DEVICE_ID_CONFIGS_STR = add_version_to_object(sdk.get.deviceidconfigs, "deviceidconfigs")
         SNMPDISCOVERY_STR = add_version_to_object(sdk.get.deviceidconfigs_snmpdiscoverystartnodes, "snmpdiscoverystartnodes")
         ELEMENT_DEVICEIDCONFIGS_STR = add_version_to_object(sdk.get.element_deviceidconfigs, "element_deviceidconfigs")
-<<<<<<< HEAD:prisma_config/pull.py
         PRISMASASE_CONNECTIONS_STR = add_version_to_object(sdk.get.prismasase_connections, "prismasase_connections")
-
-=======
         PATHPREFIXDISTRIBUTIONFILTERASSOCIATION_STR = add_version_to_object(sdk.get.pathprefixdistributionfilterassociation, "pathprefixdistributionfilterassociation")
         PATHPREFIXDISTRIBUTIONFILTERS_STR = add_version_to_object(sdk.get.pathprefixdistributionfilters, "pathprefixdistributionfilters")
         PREFIXDISTRIBUTIONSPOKELISTS_STR = add_version_to_object(sdk.get.prefixdistributionspokelists, "prefixdistributionspokelists")
->>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
 def strip_meta_attributes(obj, leave_name=False, report_id=None):
     """
@@ -1085,7 +1072,6 @@ def _pull_config_for_single_site(site_name_id):
 
     delete_if_empty(site, DEVICE_ID_CONFIGS_STR)
 
-<<<<<<< HEAD:prisma_config/pull.py
     # Get prismasase_connections
 
     site[PRISMASASE_CONNECTIONS_STR] = {}
@@ -1120,7 +1106,7 @@ def _pull_config_for_single_site(site_name_id):
         site[PRISMASASE_CONNECTIONS_STR][location_name] = prismasase_connections_template
 
     delete_if_empty(site, PRISMASASE_CONNECTIONS_STR)
-=======
+    
     # Get PATHPREFIXDISTRIBUTIONFILTERS
     site[PATHPREFIXDISTRIBUTIONFILTERS_STR] = {}
     response = sdk.get.pathprefixdistributionfilters(site['id'])
@@ -1187,7 +1173,6 @@ def _pull_config_for_single_site(site_name_id):
         strip_meta_attributes(prefixdistributionspokelists_template)
         site[PREFIXDISTRIBUTIONSPOKELISTS_STR].append(prefixdistributionspokelists_template)
     delete_if_empty(site, PREFIXDISTRIBUTIONSPOKELISTS_STR)
->>>>>>> 7e0b04b (Code changes to support 6.5.1 resources):cloudgenix_config/pull.py
 
     # Get Elements
     site[ELEMENTS_STR] = {}
@@ -1318,7 +1303,7 @@ def _pull_config_for_single_site(site_name_id):
                         continue
                 elif interface_id in bp_parent_id_list:
                     continue
-                elif if_type not in ('virtual_interface', 'bypasspair', 'port'):
+                elif if_type not in ('virtual_interface', 'bypasspair', 'port', 'port_channel'):
                     continue
             elif FORCE_PARENTS:
                 if element.get('model_name') == 'ion 9000':
