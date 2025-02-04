@@ -9712,7 +9712,6 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                     deviceid_snmpdiscovery_id2n = build_lookup_dict(deviceid_snmpdiscovery_cache, key_val='id', value_val='name')
                     delete_deviceid_snmpdiscovery(leftover_deviceid_snmpdiscovery, site_id, deviceidconfigs_id, id2n=deviceid_snmpdiscovery_id2n)
 
-<<<<<<< HEAD:prisma_config/do.py
             # -- Start Prismasase Connections config
             prismasase_connections_resp = sdk.get.prismasase_connections(site_id)
             if not prismasase_connections_resp.cgx_status:
