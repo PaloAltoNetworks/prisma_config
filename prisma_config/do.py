@@ -9715,7 +9715,7 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
             # -- Start Prismasase Connections config
             prismasase_connections_resp = sdk.get.prismasase_connections(site_id)
             if not prismasase_connections_resp.cgx_status:
-                throw_error("Prismasase Connections get failed: ", prismasase_connections_resp)
+                throw_warning("Prismasase Connections get failed: ", prismasase_connections_resp)
 
             prismasase_connections_cache, leftover_prismasase_connections = extract_items(
                 prismasase_connections_resp, 'prismasase_connections')
