@@ -12425,6 +12425,10 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                                           if entry != bgp_peer_id]
                 # END BGP PEERS
 
+                # -- Start Ospf Global Configs
+                ospfglobalconfig_id = modify_ospfglobalconfig(config_ospfglobalconfig, site_id, element_id)
+                # END Ospf Global Configs
+
                 # -- Start Ospf config
                 ospfconfig_resp = sdk.get.ospfconfigs(site_id, element_id)
                 if not ospfconfig_resp.cgx_status:
