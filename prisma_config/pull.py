@@ -1078,7 +1078,7 @@ def _pull_config_for_single_site(site_name_id):
 
     delete_if_empty(site, DEVICE_ID_CONFIGS_STR)
 
-    # Get prismasase_connections
+    # Get prismasase_connections Response
 
     site[PRISMASASE_CONNECTIONS_STR] = {}
     response = sdk.get.prismasase_connections(site['id'])
