@@ -2,7 +2,7 @@
 """
 Configuration IMPORT/EXPORT common functions
 
-**Version:** 6.3.1b1
+**Version:** 1.1.0b1
 
 **Author:** Prisma SDWAN
 
@@ -435,11 +435,72 @@ def build_lookup_dict(list_content, key_val='name', value_val='id', force_nag=Fa
     for item in list_content:
         item_key = item.get(key_val)
         item_value = item.get(value_val)
+        #if item.get("auto_generated"):
+        #    lookup_dict[item_key] = "auto_generated_resource"
+        #   continue
+        # print(item_key, item_value)
+        if item_key and item_value is not None:
+            # check if it's a duplicate key.
+            if str(item_key) in lookup_dict:
+                # First duplicate we've seen - save for warning.
+                duplicate_value = lookup_dict.get(item_key)
+                blacklist_duplicate_keys.append(item_key)
+                blacklist_duplicate_entries.append({item_key: duplicate_value})
+                blacklist_duplicate_entries.append({item_key: item_value})
+                # remove from lookup dict to prevent accidental overlap usage
+                #del lookup_dict[str(item_key)]
+
+            # check if it was a third+ duplicate key for a previous key
+            elif item_key in blacklist_duplicate_keys:
+                # save for warning.
+                blacklist_duplicate_entries.append({item_key: item_value})
+
+            else:
+                # no duplicates, append
+                # Below check to handle lookup in ion 9k
+                # 9k can have same port and bypasspair names
+                # Adding '_bypasspair' for bypasspairs
+                if key_val == 'name' and item.get('type') == 'bypasspair':
+                    lookup_dict[str(item_key) + '_bypasspair'] = item_value
+                # elif value_val == 'name' and item.get('type') == 'bypasspair':
+                #     lookup_dict[item_key] = item_value + '_bypasspair'
+                else:
+                    lookup_dict[str(item_key)] = item_value
+
+    for duplicate_key in blacklist_duplicate_keys:
+        matching_entries = [entry for entry in blacklist_duplicate_entries if duplicate_key in entry]
+        # check if force_nag set and if not, has key already been notified to the end user.
+        if force_nag or duplicate_key not in ALREADY_NAGGED_DUP_KEYS:
+            throw_warning("Lookup value '{0}' was seen two or more times. If this object is used in a config template, "
+                          "it cannot be auto-referenced. To use, please remove duplicates in the controller, or "
+                          "reference it explicitly by the actual value: ".format(duplicate_key), matching_entries)
+            # we've now notified, add to notified list.
+            ALREADY_NAGGED_DUP_KEYS.append(duplicate_key)
+    return lookup_dict
+
+def build_lookup_dict_for_prisma_sase(list_content, key_val='name', value_val='id', force_nag=False, model_name=None):
+    """
+    Build key/value lookup dict
+    :param list_content: List of dicts to derive lookup structs from
+    :param key_val: value to extract from entry to be key
+    :param value_val: value to extract from entry to be value
+    :param force_nag: Bool, if True will nag even if key in global ALREADY_NAGGED_DUP_KEYS
+    :param model_name: Element model name
+    :return: lookup dict
+    """
+    global ALREADY_NAGGED_DUP_KEYS
+    lookup_dict = {}
+    blacklist_duplicate_keys = []
+    blacklist_duplicate_entries = []
+
+    for item in list_content:
+        item_key = item.get(key_val)
+        item_value = item.get(value_val)
         if item.get("auto_generated"):
             lookup_dict[item_key] = "auto_generated_resource"
             continue
         # print(item_key, item_value)
-        if item_key and item_value is not None:
+        if item_key is not None and item_value is not None:
             # check if it's a duplicate key.
             if str(item_key) in lookup_dict:
                 # First duplicate we've seen - save for warning.
