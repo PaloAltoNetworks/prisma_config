@@ -2,7 +2,7 @@
 """
 Configuration IMPORT/EXPORT default device port configurations
 
-**Version:** 6.3.1b1
+**Version:** 1.1.0b1
 
 **Author:** Prisma SDWAN
 

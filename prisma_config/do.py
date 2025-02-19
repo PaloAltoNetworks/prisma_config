@@ -2,7 +2,7 @@
 """
 Configuration IMPORT worker/script
 
-**Version:** 1.0.0b2
+**Version:** 1.1.0b1
 
 **Author:** Palo Alto Networks Inc
 
@@ -227,7 +227,9 @@ upgrade_path_regex = {
     "5\.6\..*" : ["6.1..*", "6.0..*"],
     "6\.0\..*" : ["6.2..*", "6.1..*"],
     "6\.1\..*" : ["6.2..*", "6.3..*"],
-    "6\.2\..*" : ["6.3..*"]
+    "6\.2\..*" : ["6.3..*"],
+    "6\.3\..*" : ["6.5..*", "6.4..*"],
+    "6\.4\..*" : ["6.5..*"]
 }
 
 downgrade_path_regex = {
@@ -242,8 +244,9 @@ downgrade_path_regex = {
     "6\.0\..*" : ["5.5..*", "5.6..*"],
     "6\.1\..*" : ["5.6..*", "6.0..*"],
     "6\.2\..*" : ["6.0..*", "6.1..*"],
-    "6\.3\..*" : ["6.2..*", "6.1..*"]
-
+    "6\.3\..*" : ["6.2..*", "6.1..*"],
+    "6\.4\..*" : ["6.2..*", "6.3..*"],
+    "6\.5\..*" : ["6.3..*", "6.4..*"]
 }
 
 # Global Config Cache holders
@@ -9746,7 +9749,7 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
 
             # -- End Prismasase Connections config
             
-	    # -- Start Pathprefixdistributionfilters -- #
+	        # -- Start Pathprefixdistributionfilters -- #
 
             pathprefixdistributionfilters_resp = sdk.get.pathprefixdistributionfilters(site_id)
             pathprefixdistributionfilters_cache, leftover_pathprefixdistributionfilters = extract_items(pathprefixdistributionfilters_resp, 'pathprefixdistributionfilters')
