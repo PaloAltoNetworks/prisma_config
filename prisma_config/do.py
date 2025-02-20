@@ -2,7 +2,7 @@
 """
 Configuration IMPORT worker/script
 
-**Version:** 1.1.0b1
+**Version:** 6.5.1b1
 
 **Author:** Palo Alto Networks Inc
 

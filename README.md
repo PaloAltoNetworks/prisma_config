@@ -120,8 +120,8 @@ The Prisma Config Utility will default to using the SDK version. An out-of-date 
 #### Version
 | Version | Build | Changes |
 | ------- | ----- | ------- |
-|  1.0.0  | **b1** | Initial Release. |
-|  1.1.0  | **b1** | Support for Prisma SASE SDK 6.5.1. |
+|  6.3.1  | **b1** | Initial Release. |
+|  6.5.1  | **b1** | Support for Prisma SASE SDK 6.5.1. |
 
 
 #### For more info
