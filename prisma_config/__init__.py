@@ -58,7 +58,7 @@ else:
 
 
 # Version for reference
-__version__ = "6.3.1b1"
+__version__ = "6.5.1b1"
 version = __version__
 
 __author__ = "Prisma SDWAN Developer Support <prisma-sase-developers@paloaltonetworks.com>"
