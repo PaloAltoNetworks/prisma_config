@@ -5781,6 +5781,7 @@ ion_1200s = """
           type: vlan
           used_for: lan
           vlan_config:
+            auto_op_state: false
             mstp_instance: 0
             vlan_id: 1
             voice_enabled: false

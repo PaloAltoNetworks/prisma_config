@@ -122,6 +122,8 @@ The Prisma Config Utility will default to using the SDK version. An out-of-date 
 | ------- | ----- | ------- |
 |  6.3.1  | **b1** | Initial Release. |
 |  6.5.1  | **b1** | Support for Prisma SASE SDK 6.5.1. |
+|  6.5.1  | **b2** | Fix for CGSDW-31314       |
+
 
 
 #### For more info
