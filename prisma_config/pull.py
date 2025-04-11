@@ -2114,7 +2114,7 @@ def pull_config_sites(sites, output_filename, output_multi=None, passed_sdk=None
                       normalize=False, reset_duplicate=True):
     """
     Main configuration pull function
-    :param sites: Comma seperated list of site names or IDs, or "ALL_SITES" text.
+    :param sites: Comma seperated list of site names or IDs, or "ALL_SITES", "ALL_DCS", "ALL_BRANCHS"" text.
     :param output_filename: Filename to save configuration YAML content to.
     :param output_multi: If set, creates one file per site(s), using 'site name.yml' as filename in specified value
                          (which should be a directory path).
@@ -2181,6 +2181,23 @@ def pull_config_sites(sites, output_filename, output_multi=None, passed_sdk=None
                 # got no config info.
                 throw_error("No matching sites found when attempting to pull config for ALL_SITES.\n"
                             "Exiting.")
+        elif sites == "ALL_DCS":
+            for val in SITES:
+                if val.get('element_cluster_role') == 'HUB':
+                    _pull_config_for_single_site(val['id'])
+            if not CONFIG[SITES_STR]:
+                # got no config info.
+                throw_error("No matching sites found when attempting to pull config for ALL_DCS.\n"
+                            "Exiting.")
+        elif sites == "ALL_BRANCHS":
+            for val in SITES:
+                if val.get('element_cluster_role') == 'SPOKE':
+                    _pull_config_for_single_site(val['id'])
+            if not CONFIG[SITES_STR]:
+                # got no config info.
+                throw_error("No matching sites found when attempting to pull config for ALL_BRANCHS.\n"
+                            "Exiting.")
+
         else:
             for val in sites.split(','):
                 # ensure removing leading/trailing whitespace
@@ -2276,6 +2293,92 @@ def pull_config_sites(sites, output_filename, output_multi=None, passed_sdk=None
                 # jd(CONFIG)
                 # jd(id_name_cache)
 
+        elif sites == "ALL_DCS":
+
+            for val in SITES:
+                if val.get('element_cluster_role') == 'HUB':
+                    # Reset config
+                    CONFIG[SITES_STR] = {}
+                    _pull_config_for_single_site(val['id'])
+                    if not CONFIG[SITES_STR]:
+                        # got no config info.
+                        throw_error("No matching sites found when attempting to pull config for ALL_DCS.\n"
+                                    "Exiting.")
+                    # should only be one site in config
+                    cur_site_count = len(CONFIG[SITES_STR])
+                    if cur_site_count != 1:
+                        throw_error("BUG: Got more than one site in single site object, Exiting.")
+                    # extract site name
+                    cur_site_name = list(CONFIG[SITES_STR].keys())[0]
+
+                    if normalize:
+                        final_site_name = "".join(x for x in cur_site_name if (x.isalnum() or x in "._- "))
+                        # remove spaces
+                        final_site_name = final_site_name.replace(' ', '_')
+                    else:
+                        final_site_name = cur_site_name
+
+                    # Write out YAML file.
+                    config_yml = open(final_dir + final_site_name + ".yml", "w")
+                    config_yml.write("---\ntype: prisma_sase template\n")
+                    if sdk_version >= SDK_VERSION_REQUIRED and config_version >= CONFIG_VERSION_REQUIRED:
+                        config_yml.write(f"sdk_version: {sdk_version}\n")
+                        config_yml.write(f"config_version: {config_version}\n")
+                    # write header by default, but skip if asked.
+                    if not no_header:
+                        config_yml.write("# Created at {0}\n".format(datetime.datetime.utcnow().isoformat()+"Z"))
+                        if sdk.email:
+                            config_yml.write("# by {0}\n".format(sdk.email))
+                    config_yml.write("# Note: For interface configuration, if the source_interface or parent_interface is a bypasspair port, add the attribute 'parent_type': bypasspair_IF1_IF2 and so on. \n# If this field is not specified, the prisma_sase_config utility will assume the parent interface is of type 'port'.\n")
+                    yaml.safe_dump(CONFIG, config_yml, default_flow_style=False)
+                    config_yml.close()
+
+                    # jd(CONFIG)
+                    # jd(id_name_cache)
+
+        elif sites == "ALL_BRANCHS":
+
+            for val in SITES:
+                if val.get('element_cluster_role') == 'SPOKE':
+                    # Reset config
+                    CONFIG[SITES_STR] = {}
+                    _pull_config_for_single_site(val['id'])
+                    if not CONFIG[SITES_STR]:
+                        # got no config info.
+                        throw_error("No matching sites found when attempting to pull config for ALL_BRANCHS.\n"
+                                    "Exiting.")
+                    # should only be one site in config
+                    cur_site_count = len(CONFIG[SITES_STR])
+                    if cur_site_count != 1:
+                        throw_error("BUG: Got more than one site in single site object, Exiting.")
+                    # extract site name
+                    cur_site_name = list(CONFIG[SITES_STR].keys())[0]
+
+                    if normalize:
+                        final_site_name = "".join(x for x in cur_site_name if (x.isalnum() or x in "._- "))
+                        # remove spaces
+                        final_site_name = final_site_name.replace(' ', '_')
+                    else:
+                        final_site_name = cur_site_name
+
+                    # Write out YAML file.
+                    config_yml = open(final_dir + final_site_name + ".yml", "w")
+                    config_yml.write("---\ntype: prisma_sase template\n")
+                    if sdk_version >= SDK_VERSION_REQUIRED and config_version >= CONFIG_VERSION_REQUIRED:
+                        config_yml.write(f"sdk_version: {sdk_version}\n")
+                        config_yml.write(f"config_version: {config_version}\n")
+                    # write header by default, but skip if asked.
+                    if not no_header:
+                        config_yml.write("# Created at {0}\n".format(datetime.datetime.utcnow().isoformat()+"Z"))
+                        if sdk.email:
+                            config_yml.write("# by {0}\n".format(sdk.email))
+                    config_yml.write("# Note: For interface configuration, if the source_interface or parent_interface is a bypasspair port, add the attribute 'parent_type': bypasspair_IF1_IF2 and so on. \n# If this field is not specified, the prisma_sase_config utility will assume the parent interface is of type 'port'.\n")
+                    yaml.safe_dump(CONFIG, config_yml, default_flow_style=False)
+                    config_yml.close()
+
+                    # jd(CONFIG)
+                    # jd(id_name_cache)
+
         else:
 
             for val in sites.split(','):
@@ -2343,7 +2446,7 @@ def go():
     config_group = parser.add_argument_group('Config', 'These options change how the configuration is generated.')
     config_group.add_argument('--sites', '-S',
                               help='Site name or id. More than one can be specified '
-                                   'separated by comma, or special string "ALL_SITES".',
+                                   'separated by comma, or special string "ALL_SITES", "ALL_DCS", "ALL_BRANCHS"".',
                               required=True)
     config_group.add_argument('--leave-implicit-ids',
                               help='Preserve implicit IDs in objects ("id" values only, '
