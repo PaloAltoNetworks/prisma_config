@@ -1083,7 +1083,7 @@ def _pull_config_for_single_site(site_name_id):
     site[PRISMASASE_CONNECTIONS_STR] = {}
     response = sdk.get.prismasase_connections(site['id'])
     if not response.cgx_status:
-        throw_warning("Prisma SASE Connections get failed: ", response)
+        throw_warning("Prismasase Connections not found. Skipping..")
     prismasase_connections_items = response.cgx_content.get('items',[])
 
     for prismasase_connections in prismasase_connections_items:

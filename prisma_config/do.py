@@ -5124,7 +5124,26 @@ def modify_interface(config_interface, interface_id, interfaces_n2id, waninterfa
         config['type'] = interface_config.get('type')
         if not interface_template.get('bound_interfaces'):
             config['bound_interfaces'] = interface_config.get('bound_interfaces')
-    config['name'] = interface_config.get('name')
+
+    if interface_config.get('type') == 'cellular' and not interface_template.get('cellular_config'):
+        # This block is used to prevent resetting the below configuration only in case
+        # of the cellular
+        config['cellular_config'] = interface_config.get('cellular_config')
+        config['ipv6_config'] = interface_config.get('ipv6_config')
+        config['ipv4_config'] = interface_config.get('ipv4_config')
+        used_for = interface_config.get('used_for')
+        if used_for.lower() == "none":
+            used_for = "internet"
+        config['used_for'] = used_for
+        mtu = interface_config.get('mtu')
+        if mtu == 1500:
+            # setting mtu to the default value of 1428 only for cellular
+            mtu = 1428
+        config['mtu'] = mtu
+
+    if interface_config.get('type').lower() != 'vlan':
+        config['name'] = interface_config.get('name')
+
     config['type'] = interface_config.get('type')
     # Check for changes:
     interface_change_check = copy.deepcopy(interface_config)
@@ -5333,6 +5352,26 @@ def get_api_interfaces_name_by_type(api_interfaces, type_str, key_name='name'):
             interface_name_list.append(if_name)
 
     return interface_name_list
+
+
+def get_vlan_interfaces_dict(api_interfaces, type_str, key_name='vlan_id'):
+    """
+    Extract interface names from Interfaces API response by type
+    :param api_interfaces: Interfaces API response
+    :param type_str: Type string to match
+    :param key_name: Optional - Key name to use (default 'name')
+    :return: Dict of Interface names matching type_str
+    """
+    interface_name_dict = {}
+    for interface in api_interfaces:
+        if_id = interface.get("id")
+        if if_id and interface.get('type') == type_str:
+            vlan_config = interface.get("vlan_config")
+            if vlan_config:
+                vlan_id = vlan_config.get(key_name)
+                interface_name_dict.update({vlan_id: if_id})
+
+    return interface_name_dict
 
 
 def get_loopback_lists(config_interfaces, interfaces_cache, interfaces_n2id):
@@ -9718,7 +9757,7 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
             # -- Start Prismasase Connections config
             prismasase_connections_resp = sdk.get.prismasase_connections(site_id)
             if not prismasase_connections_resp.cgx_status:
-                throw_warning("Prismasase Connections get failed: ", prismasase_connections_resp)
+                throw_warning("Prismasase Connections not found. Skipping..")
 
             prismasase_connections_cache, leftover_prismasase_connections = extract_items(
                 prismasase_connections_resp, 'prismasase_connections')
@@ -10259,6 +10298,11 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                         # If child if does not already exist, member port configs should be wiped
                         # on create of bypasspair.
                         del config_interfaces_defaults[ifname]
+
+                # Need to delete deafult vlans as any name change in template can cause duplicates with same vlan id
+                for name, config_interface in list(config_interfaces_defaults.items()):
+                    if config_interface.get('type') == 'vlan':
+                        del config_interfaces_defaults[name]
 
                 # now that default bypasspairs are cleaned up, apply specified config to default.
                 config_interfaces_defaults.update(config_interfaces)
@@ -11106,6 +11150,7 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 config_vlan_interfaces = get_config_interfaces_by_type(config_interfaces_defaults, 'vlan')
                 leftover_vlan_interfaces = get_api_interfaces_name_by_type(interfaces_cache, 'vlan',
                                                                                key_name='id')
+                vlan_dict = get_vlan_interfaces_dict(interfaces_cache, type_str='vlan', key_name='vlan_id')
 
                 for config_interface_name, config_interface_value in config_vlan_interfaces.items():
 
@@ -11119,11 +11164,17 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
 
                     name_interface_id = interfaces_n2id.get(config_interface_name)
 
+                    vlan_config = config_interface_value.get("vlan_config")
+                    config_vlan_id = vlan_config.get("vlan_id")
+                    vlan_interface_id = vlan_dict.get(config_vlan_id)
+
                     if implicit_interface_id is not None:
                         interface_id = implicit_interface_id
                     elif name_interface_id is not None:
                         # look up ID by name on existing interfaces.
                         interface_id = name_interface_id
+                    elif vlan_interface_id is not None:
+                        interface_id = vlan_interface_id
                     else:
                         # no interface object.
                         interface_id = None
@@ -11775,6 +11826,7 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                 # START VLAN
 
                 config_vlans = get_config_interfaces_by_type(config_interfaces_defaults, 'vlan')
+                vlan_dict = get_vlan_interfaces_dict(interfaces_cache, type_str='vlan', key_name='vlan_id')
                 for config_interface_name, config_interface_value in config_vlans.items():
                     local_debug("DO VLAN: {0}".format(config_interface_name), config_interface_value)
                     # recombine object
@@ -11785,12 +11837,18 @@ def do_site(loaded_config, destroy, declaim=False, passed_sdk=None, passed_timeo
                     implicit_interface_id = config_interface.get('id')
                     name_interface_id = interfaces_n2id.get(config_interface_name)
 
+                    vlan_config = config_interface_value.get("vlan_config")
+                    config_vlan_id = vlan_config.get("vlan_id")
+                    vlan_interface_id = vlan_dict.get(config_vlan_id)
+
                     if implicit_interface_id is not None:
                         interface_id = implicit_interface_id
 
                     elif name_interface_id is not None:
                         # look up ID by name on existing interfaces.
                         interface_id = name_interface_id
+                    elif vlan_interface_id is not None:
+                        interface_id = vlan_interface_id
                     else:
                         # no interface object.
                         interface_id = None
